@@ -69,7 +69,7 @@ jobs:
               mutation($p: ID!, $r: ID!) { linkProjectV2ToRepository(input: { projectId: $p, repositoryId: $r }) { repository { id } } }' \
               --silent 2>/dev/null || true
           else
-            ORG_ID=$(gh api graphql -f org="$ORG" -f query='query($org: String!) { organization(login: $org) { id } }' --jq '.data.organization.id')
+            ORG_ID=$(gh api "repos/$TARGET" --jq .owner.node_id)
             RES=$(gh api graphql -f owner="$ORG_ID" -f repo="$REPO_ID" -f title="$NAME" -f query='
               mutation($owner: ID!, $repo: ID!, $title: String!) {
                 createProjectV2(input: { ownerId: $owner, repositoryId: $repo, title: $title }) { projectV2 { id number url } }
