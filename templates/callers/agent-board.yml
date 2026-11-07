@@ -3,11 +3,11 @@ name: Synchro du board
 
 on:
   issues:
-    types: [labeled]
+    types: [opened, labeled]
 
 jobs:
   board:
-    if: github.event.label.name == 'needs-human'
+    if: github.event.action == 'opened' || github.event.label.name == 'needs-human'
     uses: eidos-lab-fr/agent-platform/.github/workflows/reusable-board-sync.yml@main
     permissions:
       contents: read

@@ -1,13 +1,31 @@
 name: Synchro du board (réutilisable)
 
-# Appelé par .github/workflows/agent-board.yml de chaque repo, sur l'événement issues: labeled.
+# Appelé par .github/workflows/agent-board.yml de chaque repo, sur les événements issues: opened et labeled.
 
 on:
   workflow_call:
 
 jobs:
+  backlog:
+    if: github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: eidos-lab-fr/agent-platform
+          token: ${{ secrets.PROJECT_TOKEN }}
+          path: .agent-platform
+
+      - name: Nouveau ticket → Backlog
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          PROJECT_ID: ${{ vars.PROJECT_ID }}
+          STATUS_FIELD_ID: ${{ vars.STATUS_FIELD_ID }}
+        run: bash .agent-platform/scripts/set-status.sh "${{ github.event.issue.html_url }}" "${{ vars.OPT_BACKLOG }}"
+
   bloque:
-    if: github.event.label.name == 'needs-human'
+    if: github.event.action == 'labeled' && github.event.label.name == 'needs-human'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

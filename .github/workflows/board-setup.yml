@@ -1,129 +1,172 @@
 name: Configuration du board
 
+# Un board (GitHub Project) par repo. Ce workflow :
+# - reprend le Project indiqué, ou celui déjà enregistré dans le repo, ou en crée un nouveau au nom du repo ;
+# - le relie au repo et lui donne les 9 colonnes (sans effacer les statuts si elles existent déjà) ;
+# - ajoute les tickets ouverts en Backlog ;
+# - enregistre les identifiants dans les variables du repo.
+
 on:
   workflow_dispatch:
     inputs:
-      project_number:
-        description: Numéro du Project (fin de l'URL github.com/orgs/<org>/projects/<numéro>)
+      repo:
+        description: Nom du repo (sans l'org), ex. notula
         required: true
-        default: "1"
-      repos:
-        description: Repos à brancher sur ce board (noms séparés par des virgules, en plus de agent-platform)
+      project_number:
+        description: Numéro d'un Project existant à utiliser (laisser vide pour réutiliser celui du repo ou en créer un)
         required: false
         default: ""
+      new_project:
+        description: Créer un nouveau board même si le repo en a déjà un d'enregistré
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      repo:
+        type: string
+        required: true
+      project_number:
+        type: string
+        required: false
+        default: ""
+      new_project:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
-  setup:
+  board:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
-      ORG: ${{ vars.ORG || github.repository_owner }}
-      NUM: ${{ inputs.project_number }}
-      REPO: ${{ github.repository }}
+      ORG: ${{ github.repository_owner }}
+      TARGET: ${{ github.repository_owner }}/${{ inputs.repo }}
+      NAME: ${{ inputs.repo }}
+      NUM_INPUT: ${{ inputs.project_number }}
+      NEW_PROJECT: ${{ inputs.new_project }}
     steps:
-      - name: Lire le Project et son champ Status
-        id: read
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/agent-platform
+          token: ${{ secrets.PROJECT_TOKEN }}
+
+      - name: Trouver ou créer le Project du repo
+        id: project
         run: |
-          RES=$(gh api graphql -f org="$ORG" -F num="$NUM" -f query='
-            query($org: String!, $num: Int!) {
-              organization(login: $org) {
-                projectV2(number: $num) {
-                  id
-                  field(name: "Status") { ... on ProjectV2SingleSelectField { id } }
-                }
-              }
-            }')
-          PROJECT_ID=$(echo "$RES" | jq -r '.data.organization.projectV2.id')
-          FIELD_ID=$(echo "$RES" | jq -r '.data.organization.projectV2.field.id')
-          if [ "$PROJECT_ID" = "null" ] || [ "$FIELD_ID" = "null" ]; then
-            echo "Project $NUM introuvable dans $ORG, ou champ Status absent."; echo "$RES"; exit 1
+          REPO_ID=$(gh api "repos/$TARGET" --jq .node_id)
+          NUM="$NUM_INPUT"
+          if [ -z "$NUM" ] && [ "$NEW_PROJECT" != "true" ]; then
+            NUM=$(gh api "repos/$TARGET/actions/variables/PROJECT_NUMBER" --jq .value 2>/dev/null || true)
+            [ -n "$NUM" ] && echo "Project déjà enregistré dans le repo : n°$NUM"
           fi
+          if [ -n "$NUM" ]; then
+            PROJECT_ID=$(gh api graphql -f org="$ORG" -F num="$NUM" -f query='
+              query($org: String!, $num: Int!) { organization(login: $org) { projectV2(number: $num) { id } } }' \
+              --jq '.data.organization.projectV2.id')
+            gh api graphql -f p="$PROJECT_ID" -f r="$REPO_ID" -f query='
+              mutation($p: ID!, $r: ID!) { linkProjectV2ToRepository(input: { projectId: $p, repositoryId: $r }) { repository { id } } }' \
+              --silent 2>/dev/null || true
+          else
+            ORG_ID=$(gh api graphql -f org="$ORG" -f query='query($org: String!) { organization(login: $org) { id } }' --jq '.data.organization.id')
+            RES=$(gh api graphql -f owner="$ORG_ID" -f repo="$REPO_ID" -f title="$NAME" -f query='
+              mutation($owner: ID!, $repo: ID!, $title: String!) {
+                createProjectV2(input: { ownerId: $owner, repositoryId: $repo, title: $title }) { projectV2 { id number url } }
+              }')
+            PROJECT_ID=$(echo "$RES" | jq -r '.data.createProjectV2.projectV2.id')
+            NUM=$(echo "$RES" | jq -r '.data.createProjectV2.projectV2.number')
+            echo "Project créé : $(echo "$RES" | jq -r '.data.createProjectV2.projectV2.url')"
+          fi
+          if [ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" = "null" ]; then echo "Project introuvable ou non créé"; exit 1; fi
+          FIELD_ID=$(gh api graphql -f id="$PROJECT_ID" -f query='
+            query($id: ID!) { node(id: $id) { ... on ProjectV2 { field(name: "Status") { ... on ProjectV2SingleSelectField { id } } } } }' \
+            --jq '.data.node.field.id')
+          echo "number=$NUM" >> "$GITHUB_OUTPUT"
           echo "project_id=$PROJECT_ID" >> "$GITHUB_OUTPUT"
           echo "field_id=$FIELD_ID" >> "$GITHUB_OUTPUT"
+          echo "url=https://github.com/orgs/$ORG/projects/$NUM" >> "$GITHUB_OUTPUT"
 
-      - name: Créer les colonnes
+      - name: Colonnes
         id: columns
         env:
-          FIELD_ID: ${{ steps.read.outputs.field_id }}
+          PROJECT_ID: ${{ steps.project.outputs.project_id }}
+          FIELD_ID: ${{ steps.project.outputs.field_id }}
         run: |
-          RES=$(gh api graphql -f field="$FIELD_ID" -f query='
-            mutation($field: ID!) {
-              updateProjectV2Field(input: {
-                fieldId: $field
-                singleSelectOptions: [
-                  { name: "Backlog",          color: GRAY,   description: "Ticket créé" }
-                  { name: "Spec en cours",    color: BLUE,   description: "Spec en rédaction" }
-                  { name: "Spec prête",       color: BLUE,   description: "Spec mergée, ticket prêt" }
-                  { name: "À développer",     color: YELLOW, description: "Label ready-for-dev posé" }
-                  { name: "En développement", color: ORANGE, description: "Agent dev au travail" }
-                  { name: "PR ouverte",       color: PURPLE, description: "Agents de review au travail" }
-                  { name: "Revue humaine",    color: PINK,   description: "À valider et merger" }
-                  { name: "Done",             color: GREEN,  description: "PR mergée" }
-                  { name: "Bloqué",           color: RED,    description: "Un agent attend une décision" }
-                ]
-              }) {
-                projectV2Field { ... on ProjectV2SingleSelectField { options { id name } } }
-              }
-            }')
-          echo "$RES" | jq -e '.data.updateProjectV2Field.projectV2Field.options' > options.json || { echo "$RES"; exit 1; }
-          cat options.json
+          WANTED='["Backlog","Spec en cours","Spec prête","À développer","En développement","PR ouverte","Revue humaine","Done","Bloqué"]'
+          gh api graphql -f id="$PROJECT_ID" -f query='
+            query($id: ID!) { node(id: $id) { ... on ProjectV2 { field(name: "Status") { ... on ProjectV2SingleSelectField { options { id name } } } } } }' \
+            --jq '.data.node.field.options' > options.json
+          if [ "$(jq -c '[.[].name]' options.json)" = "$(echo "$WANTED" | jq -c .)" ]; then
+            echo "Colonnes déjà en place : statuts des cartes conservés."
+          else
+            gh api graphql -f field="$FIELD_ID" -f query='
+              mutation($field: ID!) {
+                updateProjectV2Field(input: {
+                  fieldId: $field
+                  singleSelectOptions: [
+                    { name: "Backlog",          color: GRAY,   description: "Ticket créé" }
+                    { name: "Spec en cours",    color: BLUE,   description: "Spec en rédaction" }
+                    { name: "Spec prête",       color: BLUE,   description: "Spec mergée, ticket prêt" }
+                    { name: "À développer",     color: YELLOW, description: "Label ready-for-dev posé" }
+                    { name: "En développement", color: ORANGE, description: "Agent dev au travail" }
+                    { name: "PR ouverte",       color: PURPLE, description: "Agents de review au travail" }
+                    { name: "Revue humaine",    color: PINK,   description: "À valider et merger" }
+                    { name: "Done",             color: GREEN,  description: "PR mergée" }
+                    { name: "Bloqué",           color: RED,    description: "Un agent attend une décision" }
+                  ]
+                }) { projectV2Field { ... on ProjectV2SingleSelectField { options { id name } } } }
+              }' --jq '.data.updateProjectV2Field.projectV2Field.options' > options.json
+            echo "Colonnes créées."
+          fi
           opt() { jq -r --arg n "$1" '.[] | select(.name == $n) | .id' options.json; }
           {
+            echo "backlog=$(opt 'Backlog')"
             echo "en_dev=$(opt 'En développement')"
             echo "pr_ouverte=$(opt 'PR ouverte')"
             echo "revue_humaine=$(opt 'Revue humaine')"
             echo "bloque=$(opt 'Bloqué')"
-            echo "backlog=$(opt 'Backlog')"
           } >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v4
-
-      - name: Ajouter les tickets ouverts des repos listés au board (colonne Backlog)
+      - name: Tickets ouverts absents du board → Backlog
         env:
-          PROJECT_ID: ${{ steps.read.outputs.project_id }}
-          STATUS_FIELD_ID: ${{ steps.read.outputs.field_id }}
+          PROJECT_ID: ${{ steps.project.outputs.project_id }}
+          STATUS_FIELD_ID: ${{ steps.project.outputs.field_id }}
           BACKLOG: ${{ steps.columns.outputs.backlog }}
         run: |
-          for R in $(echo "${{ inputs.repos }}" | tr ',' ' '); do
-            for URL in $(gh api "repos/$ORG/$R/issues?state=open&per_page=100" --jq '.[] | select(.pull_request == null) | .html_url'); do
+          ON_BOARD=$(gh api graphql -f id="$PROJECT_ID" -f query='
+            query($id: ID!) { node(id: $id) { ... on ProjectV2 { items(first: 100) { nodes { content { ... on Issue { url } } } } } } }' \
+            --jq '[.data.node.items.nodes[].content.url // empty]')
+          for URL in $(gh api "repos/$TARGET/issues?state=open&per_page=100" --jq '.[] | select(.pull_request == null) | .html_url'); do
+            if echo "$ON_BOARD" | jq -e --arg u "$URL" 'index($u)' > /dev/null; then
+              echo "Déjà sur le board : $URL"
+            else
               bash scripts/set-status.sh "$URL" "$BACKLOG"
-            done
+            fi
           done
 
-      - name: Enregistrer les identifiants dans les variables du repo
+      - name: Enregistrer les identifiants dans le repo
         env:
-          PROJECT_ID: ${{ steps.read.outputs.project_id }}
-          FIELD_ID: ${{ steps.read.outputs.field_id }}
-          OPT_EN_DEV: ${{ steps.columns.outputs.en_dev }}
-          OPT_PR_OUVERTE: ${{ steps.columns.outputs.pr_ouverte }}
-          OPT_REVUE_HUMAINE: ${{ steps.columns.outputs.revue_humaine }}
-          OPT_BLOQUE: ${{ steps.columns.outputs.bloque }}
+          V_PROJECT_NUMBER: ${{ steps.project.outputs.number }}
+          V_PROJECT_ID: ${{ steps.project.outputs.project_id }}
+          V_STATUS_FIELD_ID: ${{ steps.project.outputs.field_id }}
+          V_OPT_BACKLOG: ${{ steps.columns.outputs.backlog }}
+          V_OPT_EN_DEV: ${{ steps.columns.outputs.en_dev }}
+          V_OPT_PR_OUVERTE: ${{ steps.columns.outputs.pr_ouverte }}
+          V_OPT_REVUE_HUMAINE: ${{ steps.columns.outputs.revue_humaine }}
+          V_OPT_BLOQUE: ${{ steps.columns.outputs.bloque }}
         run: |
           {
-            echo "## Identifiants du board"
+            echo "## Board de $TARGET"
+            echo ""
+            echo "${{ steps.project.outputs.url }}"
             echo ""
             echo "| Variable | Valeur |"
             echo "| --- | --- |"
           } >> "$GITHUB_STEP_SUMMARY"
-          FAILED=0
-          for PAIR in "PROJECT_NUMBER=$NUM" "PROJECT_ID=$PROJECT_ID" "STATUS_FIELD_ID=$FIELD_ID" \
-                      "OPT_EN_DEV=$OPT_EN_DEV" "OPT_PR_OUVERTE=$OPT_PR_OUVERTE" \
-                      "OPT_REVUE_HUMAINE=$OPT_REVUE_HUMAINE" "OPT_BLOQUE=$OPT_BLOQUE"; do
-            NAME="${PAIR%%=*}"; VALUE="${PAIR#*=}"
-            echo "| \`$NAME\` | \`$VALUE\` |" >> "$GITHUB_STEP_SUMMARY"
-            for R in $REPO $(echo "${{ inputs.repos }}" | tr ',' ' ' | sed "s#[^ ]\+#$ORG/&#g"); do
-              gh variable set "$NAME" --repo "$R" --body "$VALUE" || FAILED=1
-            done
+          for NAME in PROJECT_NUMBER PROJECT_ID STATUS_FIELD_ID OPT_BACKLOG OPT_EN_DEV OPT_PR_OUVERTE OPT_REVUE_HUMAINE OPT_BLOQUE; do
+            VAR="V_$NAME"
+            gh variable set "$NAME" --repo "$TARGET" --body "${!VAR}"
+            echo "| \`$NAME\` | \`${!VAR}\` |" >> "$GITHUB_STEP_SUMMARY"
           done
-          if [ "$FAILED" = "1" ]; then
-            {
-              echo ""
-              echo "Le token n'a pas pu écrire les variables. Ajoute la permission **Variables : Read and write** au PROJECT_TOKEN puis relance, ou recopie ces valeurs à la main dans Settings → Secrets and variables → Actions → Variables."
-            } >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "Variables enregistrées dans agent-platform et dans les repos listés. Les prochains onboardings les recopieront automatiquement." >> "$GITHUB_STEP_SUMMARY"
-          fi
+          echo "Board : ${{ steps.project.outputs.url }}"

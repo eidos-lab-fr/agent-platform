@@ -1,6 +1,6 @@
 name: Onboarder un repo
 
-# Branche un repo de l'org sur la plateforme : labels, secrets, variables du board,
+# Branche un repo de l'org sur la plateforme : labels, secrets, board dédié au repo,
 # puis un agent analyse le repo et ouvre une PR avec workflows, scopes et CLAUDE.md.
 
 on:
@@ -47,25 +47,12 @@ jobs:
           gh secret set PROJECT_TOKEN --repo "$TARGET" --body "$PROJECT_TOKEN"
           echo "Secrets copiés."
 
-      - name: Variables du board
-        env:
-          V_PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
-          V_PROJECT_ID: ${{ vars.PROJECT_ID }}
-          V_STATUS_FIELD_ID: ${{ vars.STATUS_FIELD_ID }}
-          V_OPT_EN_DEV: ${{ vars.OPT_EN_DEV }}
-          V_OPT_PR_OUVERTE: ${{ vars.OPT_PR_OUVERTE }}
-          V_OPT_REVUE_HUMAINE: ${{ vars.OPT_REVUE_HUMAINE }}
-          V_OPT_BLOQUE: ${{ vars.OPT_BLOQUE }}
-        run: |
-          if [ -z "$V_PROJECT_ID" ]; then
-            echo "Board pas encore configuré dans agent-platform : variables ignorées (lance « Configuration du board » puis réonboarde)."
-            exit 0
-          fi
-          for NAME in PROJECT_NUMBER PROJECT_ID STATUS_FIELD_ID OPT_EN_DEV OPT_PR_OUVERTE OPT_REVUE_HUMAINE OPT_BLOQUE; do
-            VAR="V_$NAME"
-            gh variable set "$NAME" --repo "$TARGET" --body "${!VAR}"
-          done
-          echo "Variables du board copiées."
+  board:
+    needs: setup
+    uses: ./.github/workflows/board-setup.yml
+    with:
+      repo: ${{ inputs.repo }}
+    secrets: inherit
 
   agent:
     needs: setup
