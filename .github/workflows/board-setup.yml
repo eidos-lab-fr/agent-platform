@@ -79,18 +79,18 @@ jobs:
             echo "backlog=$(opt 'Backlog')"
           } >> "$GITHUB_OUTPUT"
 
+      - uses: actions/checkout@v4
+
       - name: Ajouter les tickets ouverts des repos listés au board (colonne Backlog)
         env:
           PROJECT_ID: ${{ steps.read.outputs.project_id }}
-          FIELD_ID: ${{ steps.read.outputs.field_id }}
+          STATUS_FIELD_ID: ${{ steps.read.outputs.field_id }}
           BACKLOG: ${{ steps.columns.outputs.backlog }}
         run: |
           for R in $(echo "${{ inputs.repos }}" | tr ',' ' '); do
-          for URL in $(gh issue list --repo "$ORG/$R" --state open --limit 100 --json url -q '.[].url'); do
-            ITEM=$(gh project item-add "$NUM" --owner "$ORG" --url "$URL" --format json --jq .id)
-            gh project item-edit --id "$ITEM" --project-id "$PROJECT_ID" --field-id "$FIELD_ID" --single-select-option-id "$BACKLOG" > /dev/null
-            echo "Ajouté : $URL"
-          done
+            for URL in $(gh api "repos/$ORG/$R/issues?state=open&per_page=100" --jq '.[] | select(.pull_request == null) | .html_url'); do
+              bash scripts/set-status.sh "$URL" "$BACKLOG"
+            done
           done
 
       - name: Enregistrer les identifiants dans les variables du repo
