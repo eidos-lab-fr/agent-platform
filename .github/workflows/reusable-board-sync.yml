@@ -1,0 +1,27 @@
+name: Synchro du board (réutilisable)
+
+# Appelé par .github/workflows/agent-board.yml de chaque repo, sur l'événement issues: labeled.
+
+on:
+  workflow_call:
+
+jobs:
+  bloque:
+    if: github.event.label.name == 'needs-human'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: eidos-lab-fr/agent-platform
+          token: ${{ secrets.PROJECT_TOKEN }}
+          path: .agent-platform
+
+      - name: Board → Bloqué
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ORG: ${{ vars.ORG || github.repository_owner }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          PROJECT_ID: ${{ vars.PROJECT_ID }}
+          STATUS_FIELD_ID: ${{ vars.STATUS_FIELD_ID }}
+        run: bash .agent-platform/scripts/set-status.sh "${{ github.event.issue.html_url }}" "${{ vars.OPT_BLOQUE }}"

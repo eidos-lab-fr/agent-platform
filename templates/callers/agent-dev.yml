@@ -1,0 +1,17 @@
+# Géré par eidos-lab-fr/agent-platform. La logique est dans le workflow réutilisable.
+name: Agent dev
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  dev:
+    if: github.event.label.name == 'ready-for-dev'
+    uses: eidos-lab-fr/agent-platform/.github/workflows/reusable-dev-agent.yml@main
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    secrets: inherit

@@ -1,0 +1,126 @@
+name: Agents de review (réutilisable)
+
+# Appelé par .github/workflows/agent-review.yml de chaque repo, sur l'événement pull_request.
+# Ne s'applique qu'aux branches agent/*.
+
+on:
+  workflow_call:
+    inputs:
+      reviewers:
+        description: Relecteurs à lancer, en JSON
+        type: string
+        default: '["spec","securite","tests"]'
+
+jobs:
+  reset:
+    if: startsWith(github.head_ref, 'agent/')
+    runs-on: ubuntu-latest
+    outputs:
+      issue_url: ${{ steps.issue.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: eidos-lab-fr/agent-platform
+          token: ${{ secrets.PROJECT_TOKEN }}
+          path: .agent-platform
+
+      - name: Retirer les verdicts précédents
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X DELETE "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/review:changes" || true
+          gh api -X DELETE "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/review:ok" || true
+
+      - name: Trouver le ticket lié
+        id: issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          URL=$(gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} \
+            --json closingIssuesReferences -q '.closingIssuesReferences[0].url // ""')
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Ticket lié : ${URL:-aucun}"
+
+      - name: Board → PR ouverte
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ORG: ${{ vars.ORG || github.repository_owner }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          PROJECT_ID: ${{ vars.PROJECT_ID }}
+          STATUS_FIELD_ID: ${{ vars.STATUS_FIELD_ID }}
+        run: bash .agent-platform/scripts/set-status.sh "${{ steps.issue.outputs.url }}" "${{ vars.OPT_PR_OUVERTE }}"
+
+  review:
+    needs: reset
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        reviewer: ${{ fromJSON(inputs.reviewers) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Récupérer les règles de la plateforme
+        uses: actions/checkout@v4
+        with:
+          repository: eidos-lab-fr/agent-platform
+          token: ${{ secrets.PROJECT_TOKEN }}
+          path: .agent-platform
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          allowed_bots: "claude,claude[bot]"
+          prompt: |
+            Tu es un agent de review du repo ${{ github.repository }}.
+            Lis et applique, dans cet ordre :
+            1. .agent-platform/agents/review-${{ matrix.reviewer }}.md
+            2. CLAUDE.md à la racine du repo, s'il existe
+            3. .github/agents/review-${{ matrix.reviewer }}.md, s'il existe : ce sont des règles propres au repo, qui s'ajoutent aux précédentes
+            PR à relire : #${{ github.event.pull_request.number }}.
+            Commente les problèmes ligne par ligne, puis poste ton résumé avec gh pr comment.
+            Si et seulement si un problème est bloquant, ajoute le label review:changes à la PR.
+          claude_args: >-
+            --max-turns 30
+            --allowedTools "Read,Glob,Grep,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr edit:*),Bash(gh issue view:*),mcp__github_inline_comment__create_inline_comment"
+
+  verdict:
+    needs: [reset, review]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: eidos-lab-fr/agent-platform
+          token: ${{ secrets.PROJECT_TOKEN }}
+          path: .agent-platform
+
+      - name: Trancher
+        id: verdict
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR=${{ github.event.pull_request.number }}
+          LABELS=$(gh api "repos/${{ github.repository }}/issues/$PR/labels" -q '.[].name')
+          if echo "$LABELS" | grep -qx 'review:changes'; then
+            echo "result=changes" >> "$GITHUB_OUTPUT"
+            echo "Au moins une review bloquante."
+          else
+            gh api -X POST "repos/${{ github.repository }}/issues/$PR/labels" -f "labels[]=review:ok" --silent
+            echo "result=ok" >> "$GITHUB_OUTPUT"
+            echo "Aucune review bloquante."
+          fi
+
+      - name: Board → Revue humaine
+        if: steps.verdict.outputs.result == 'ok'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ORG: ${{ vars.ORG || github.repository_owner }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          PROJECT_ID: ${{ vars.PROJECT_ID }}
+          STATUS_FIELD_ID: ${{ vars.STATUS_FIELD_ID }}
+        run: bash .agent-platform/scripts/set-status.sh "${{ needs.reset.outputs.issue_url }}" "${{ vars.OPT_REVUE_HUMAINE }}"

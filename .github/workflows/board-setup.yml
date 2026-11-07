@@ -1,0 +1,129 @@
+name: Configuration du board
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_number:
+        description: Numéro du Project (fin de l'URL github.com/orgs/<org>/projects/<numéro>)
+        required: true
+        default: "1"
+      repos:
+        description: Repos à brancher sur ce board (noms séparés par des virgules, en plus de agent-platform)
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+      ORG: ${{ vars.ORG || github.repository_owner }}
+      NUM: ${{ inputs.project_number }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Lire le Project et son champ Status
+        id: read
+        run: |
+          RES=$(gh api graphql -f org="$ORG" -F num="$NUM" -f query='
+            query($org: String!, $num: Int!) {
+              organization(login: $org) {
+                projectV2(number: $num) {
+                  id
+                  field(name: "Status") { ... on ProjectV2SingleSelectField { id } }
+                }
+              }
+            }')
+          PROJECT_ID=$(echo "$RES" | jq -r '.data.organization.projectV2.id')
+          FIELD_ID=$(echo "$RES" | jq -r '.data.organization.projectV2.field.id')
+          if [ "$PROJECT_ID" = "null" ] || [ "$FIELD_ID" = "null" ]; then
+            echo "Project $NUM introuvable dans $ORG, ou champ Status absent."; echo "$RES"; exit 1
+          fi
+          echo "project_id=$PROJECT_ID" >> "$GITHUB_OUTPUT"
+          echo "field_id=$FIELD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Créer les colonnes
+        id: columns
+        env:
+          FIELD_ID: ${{ steps.read.outputs.field_id }}
+        run: |
+          RES=$(gh api graphql -f field="$FIELD_ID" -f query='
+            mutation($field: ID!) {
+              updateProjectV2Field(input: {
+                fieldId: $field
+                singleSelectOptions: [
+                  { name: "Backlog",          color: GRAY,   description: "Ticket créé" }
+                  { name: "Spec en cours",    color: BLUE,   description: "Spec en rédaction" }
+                  { name: "Spec prête",       color: BLUE,   description: "Spec mergée, ticket prêt" }
+                  { name: "À développer",     color: YELLOW, description: "Label ready-for-dev posé" }
+                  { name: "En développement", color: ORANGE, description: "Agent dev au travail" }
+                  { name: "PR ouverte",       color: PURPLE, description: "Agents de review au travail" }
+                  { name: "Revue humaine",    color: PINK,   description: "À valider et merger" }
+                  { name: "Done",             color: GREEN,  description: "PR mergée" }
+                  { name: "Bloqué",           color: RED,    description: "Un agent attend une décision" }
+                ]
+              }) {
+                projectV2Field { ... on ProjectV2SingleSelectField { options { id name } } }
+              }
+            }')
+          echo "$RES" | jq -e '.data.updateProjectV2Field.projectV2Field.options' > options.json || { echo "$RES"; exit 1; }
+          cat options.json
+          opt() { jq -r --arg n "$1" '.[] | select(.name == $n) | .id' options.json; }
+          {
+            echo "en_dev=$(opt 'En développement')"
+            echo "pr_ouverte=$(opt 'PR ouverte')"
+            echo "revue_humaine=$(opt 'Revue humaine')"
+            echo "bloque=$(opt 'Bloqué')"
+            echo "backlog=$(opt 'Backlog')"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Ajouter les tickets ouverts des repos listés au board (colonne Backlog)
+        env:
+          PROJECT_ID: ${{ steps.read.outputs.project_id }}
+          FIELD_ID: ${{ steps.read.outputs.field_id }}
+          BACKLOG: ${{ steps.columns.outputs.backlog }}
+        run: |
+          for R in $(echo "${{ inputs.repos }}" | tr ',' ' '); do
+          for URL in $(gh issue list --repo "$ORG/$R" --state open --limit 100 --json url -q '.[].url'); do
+            ITEM=$(gh project item-add "$NUM" --owner "$ORG" --url "$URL" --format json --jq .id)
+            gh project item-edit --id "$ITEM" --project-id "$PROJECT_ID" --field-id "$FIELD_ID" --single-select-option-id "$BACKLOG" > /dev/null
+            echo "Ajouté : $URL"
+          done
+          done
+
+      - name: Enregistrer les identifiants dans les variables du repo
+        env:
+          PROJECT_ID: ${{ steps.read.outputs.project_id }}
+          FIELD_ID: ${{ steps.read.outputs.field_id }}
+          OPT_EN_DEV: ${{ steps.columns.outputs.en_dev }}
+          OPT_PR_OUVERTE: ${{ steps.columns.outputs.pr_ouverte }}
+          OPT_REVUE_HUMAINE: ${{ steps.columns.outputs.revue_humaine }}
+          OPT_BLOQUE: ${{ steps.columns.outputs.bloque }}
+        run: |
+          {
+            echo "## Identifiants du board"
+            echo ""
+            echo "| Variable | Valeur |"
+            echo "| --- | --- |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          FAILED=0
+          for PAIR in "PROJECT_NUMBER=$NUM" "PROJECT_ID=$PROJECT_ID" "STATUS_FIELD_ID=$FIELD_ID" \
+                      "OPT_EN_DEV=$OPT_EN_DEV" "OPT_PR_OUVERTE=$OPT_PR_OUVERTE" \
+                      "OPT_REVUE_HUMAINE=$OPT_REVUE_HUMAINE" "OPT_BLOQUE=$OPT_BLOQUE"; do
+            NAME="${PAIR%%=*}"; VALUE="${PAIR#*=}"
+            echo "| \`$NAME\` | \`$VALUE\` |" >> "$GITHUB_STEP_SUMMARY"
+            for R in $REPO $(echo "${{ inputs.repos }}" | tr ',' ' ' | sed "s#[^ ]\+#$ORG/&#g"); do
+              gh variable set "$NAME" --repo "$R" --body "$VALUE" || FAILED=1
+            done
+          done
+          if [ "$FAILED" = "1" ]; then
+            {
+              echo ""
+              echo "Le token n'a pas pu écrire les variables. Ajoute la permission **Variables : Read and write** au PROJECT_TOKEN puis relance, ou recopie ces valeurs à la main dans Settings → Secrets and variables → Actions → Variables."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Variables enregistrées dans agent-platform et dans les repos listés. Les prochains onboardings les recopieront automatiquement." >> "$GITHUB_STEP_SUMMARY"
+          fi

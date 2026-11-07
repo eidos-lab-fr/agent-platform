@@ -1,0 +1,107 @@
+name: Onboarder un repo
+
+# Branche un repo de l'org sur la plateforme : labels, secrets, variables du board,
+# puis un agent analyse le repo et ouvre une PR avec workflows, scopes et CLAUDE.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: Nom du repo à onboarder (sans l'org), ex. notula
+        required: true
+      agent:
+        description: Lancer l'agent qui ouvre la PR de configuration (décocher pour ne resynchroniser que labels, secrets et variables)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+      TARGET: ${{ github.repository_owner }}/${{ inputs.repo }}
+    steps:
+      - name: Vérifier l'accès au repo
+        run: |
+          gh api "repos/$TARGET" -q '"Repo trouvé : \(.full_name), branche par défaut : \(.default_branch)"'
+
+      - name: Labels communs
+        run: |
+          mk() { gh label create "$1" --repo "$TARGET" --color "$2" --description "$3" --force; }
+          mk "ready-for-dev"  FBCA04 "Déclenche l'agent de dev"
+          mk "needs-human"    D93F0B "Un agent attend une décision"
+          mk "review:ok"      0E8A16 "Aucune review bloquante"
+          mk "review:changes" B60205 "Au moins une review bloquante"
+
+      - name: Secrets
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+        run: |
+          [ -n "$ANTHROPIC_API_KEY" ] || { echo "Secret ANTHROPIC_API_KEY absent de agent-platform"; exit 1; }
+          gh secret set ANTHROPIC_API_KEY --repo "$TARGET" --body "$ANTHROPIC_API_KEY"
+          gh secret set PROJECT_TOKEN --repo "$TARGET" --body "$PROJECT_TOKEN"
+          echo "Secrets copiés."
+
+      - name: Variables du board
+        env:
+          V_PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          V_PROJECT_ID: ${{ vars.PROJECT_ID }}
+          V_STATUS_FIELD_ID: ${{ vars.STATUS_FIELD_ID }}
+          V_OPT_EN_DEV: ${{ vars.OPT_EN_DEV }}
+          V_OPT_PR_OUVERTE: ${{ vars.OPT_PR_OUVERTE }}
+          V_OPT_REVUE_HUMAINE: ${{ vars.OPT_REVUE_HUMAINE }}
+          V_OPT_BLOQUE: ${{ vars.OPT_BLOQUE }}
+        run: |
+          if [ -z "$V_PROJECT_ID" ]; then
+            echo "Board pas encore configuré dans agent-platform : variables ignorées (lance « Configuration du board » puis réonboarde)."
+            exit 0
+          fi
+          for NAME in PROJECT_NUMBER PROJECT_ID STATUS_FIELD_ID OPT_EN_DEV OPT_PR_OUVERTE OPT_REVUE_HUMAINE OPT_BLOQUE; do
+            VAR="V_$NAME"
+            gh variable set "$NAME" --repo "$TARGET" --body "${!VAR}"
+          done
+          echo "Variables du board copiées."
+
+  agent:
+    needs: setup
+    if: inputs.agent
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Récupérer le repo cible
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/${{ inputs.repo }}
+          token: ${{ secrets.PROJECT_TOKEN }}
+          fetch-depth: 0
+
+      - name: Récupérer la plateforme
+        uses: actions/checkout@v4
+        with:
+          path: .agent-platform
+
+      - name: Préparer git
+        run: |
+          echo ".agent-platform/" >> .git/info/exclude
+          git config user.name "AdrienBalcioglu"
+          git config user.email "AdrienBalcioglu@users.noreply.github.com"
+
+      - uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.PROJECT_TOKEN }}
+          prompt: |
+            Tu es l'agent d'onboarding de la plateforme.
+            Lis et applique à la lettre .agent-platform/agents/onboard.md.
+            Repo à onboarder : ${{ github.repository_owner }}/${{ inputs.repo }}. Il est extrait à la racine du dossier de travail.
+            Utilise toujours --repo ${{ github.repository_owner }}/${{ inputs.repo }} avec gh.
+          claude_args: >-
+            --max-turns 80
+            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(git:*),Bash(gh:*),Bash(cp:*),Bash(mkdir:*),Bash(ls:*),Bash(cat:*),Bash(find:*)"

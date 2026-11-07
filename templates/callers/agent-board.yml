@@ -1,0 +1,14 @@
+# Géré par eidos-lab-fr/agent-platform. La logique est dans le workflow réutilisable.
+name: Synchro du board
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  board:
+    if: github.event.label.name == 'needs-human'
+    uses: eidos-lab-fr/agent-platform/.github/workflows/reusable-board-sync.yml@main
+    permissions:
+      contents: read
+    secrets: inherit

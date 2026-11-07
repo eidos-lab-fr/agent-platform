@@ -1,0 +1,42 @@
+name: Claude @claude (réutilisable)
+
+# Appelé par .github/workflows/agent-claude.yml de chaque repo, sur les commentaires de tickets et de PR.
+
+on:
+  workflow_call:
+    inputs:
+      allowed_users:
+        type: string
+        default: AdrienBalcioglu
+      node_version:
+        type: string
+        default: "22"
+      extra_allowed_tools:
+        type: string
+        default: ""
+
+jobs:
+  claude:
+    if: >-
+      contains(format(',{0},', inputs.allowed_users), format(',{0},', github.event.sender.login)) && (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: >-
+            --max-turns 40
+            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(git:*),Bash(gh:*),Bash(npm:*),Bash(npx:*)${{ inputs.extra_allowed_tools != '' && format(',{0}', inputs.extra_allowed_tools) || '' }}"

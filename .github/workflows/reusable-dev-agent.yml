@@ -1,0 +1,91 @@
+name: Agent dev (réutilisable)
+
+# Appelé par .github/workflows/agent-dev.yml de chaque repo, sur l'événement issues: labeled.
+
+on:
+  workflow_call:
+    inputs:
+      allowed_users:
+        description: Logins autorisés à déclencher un agent, séparés par des virgules
+        type: string
+        default: AdrienBalcioglu
+      node_version:
+        type: string
+        default: "22"
+      max_turns:
+        type: number
+        default: 60
+      extra_allowed_tools:
+        description: Outils Bash supplémentaires propres au repo, ex. Bash(pnpm:*),Bash(pytest:*)
+        type: string
+        default: ""
+
+jobs:
+  dev:
+    if: >-
+      github.event.label.name == 'ready-for-dev' &&
+      contains(format(',{0},', inputs.allowed_users), format(',{0},', github.event.sender.login))
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency: agent-dev-${{ github.repository }}-${{ github.event.issue.number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Récupérer les règles de la plateforme
+        uses: actions/checkout@v4
+        with:
+          repository: eidos-lab-fr/agent-platform
+          token: ${{ secrets.PROJECT_TOKEN }}
+          path: .agent-platform
+
+      - name: Exclure la plateforme des commits
+        run: echo ".agent-platform/" >> .git/info/exclude
+
+      - name: Déterminer le scope
+        id: scope
+        env:
+          LABELS: ${{ toJson(github.event.issue.labels.*.name) }}
+        run: |
+          SCOPE=$(echo "$LABELS" | jq -r '.[] | select(startswith("scope:")) | sub("scope:"; "")' | head -n1)
+          if [ -n "$SCOPE" ] && [ -f ".github/agents/dev-$SCOPE.md" ]; then
+            echo "file=.github/agents/dev-$SCOPE.md" >> "$GITHUB_OUTPUT"
+          else
+            SCOPE=general
+            echo "file=.agent-platform/agents/dev-general.md" >> "$GITHUB_OUTPUT"
+          fi
+          echo "scope=$SCOPE" >> "$GITHUB_OUTPUT"
+          echo "Scope retenu : $SCOPE"
+
+      - name: Board → En développement
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ORG: ${{ vars.ORG || github.repository_owner }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          PROJECT_ID: ${{ vars.PROJECT_ID }}
+          STATUS_FIELD_ID: ${{ vars.STATUS_FIELD_ID }}
+        run: bash .agent-platform/scripts/set-status.sh "${{ github.event.issue.html_url }}" "${{ vars.OPT_EN_DEV }}"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Tu es un agent de développement du repo ${{ github.repository }}.
+            Lis et applique, dans cet ordre (chaque fichier précise le précédent) :
+            1. .agent-platform/agents/_commun-dev.md
+            2. CLAUDE.md à la racine du repo, s'il existe
+            3. .github/agents/_commun-dev.md, s'il existe
+            4. ${{ steps.scope.outputs.file }}
+            Ne modifie jamais le dossier .agent-platform/.
+            Ticket à traiter : #${{ github.event.issue.number }} (lis-le avec gh issue view ${{ github.event.issue.number }}).
+            Branche à créer : agent/${{ github.event.issue.number }}-<slug court>.
+            Termine en ouvrant la PR avec gh pr create, ou en commentant le ticket avec le label needs-human si tu dois t'arrêter.
+          claude_args: >-
+            --max-turns ${{ inputs.max_turns }}
+            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(git:*),Bash(gh:*),Bash(npm:*),Bash(npx:*)${{ inputs.extra_allowed_tools != '' && format(',{0}', inputs.extra_allowed_tools) || '' }}"
