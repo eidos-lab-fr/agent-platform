@@ -75,6 +75,7 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          show_full_output: true
           prompt: |
             Tu es un agent de développement du repo ${{ github.repository }}.
             Lis et applique, dans cet ordre (chaque fichier précise le précédent) :
