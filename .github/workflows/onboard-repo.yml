@@ -75,8 +75,8 @@ jobs:
       - name: Préparer git
         run: |
           echo ".agent-platform/" >> .git/info/exclude
-          git config user.name "AdrienBalcioglu"
-          git config user.email "AdrienBalcioglu@users.noreply.github.com"
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
 
       - uses: anthropics/claude-code-action@v1
         env:

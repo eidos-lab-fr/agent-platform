@@ -6,6 +6,7 @@ on:
   workflow_call:
     inputs:
       allowed_users:
+        description: Logins autorisés à déclencher un agent, séparés par des virgules. Tout autre compte est ignoré.
         type: string
         default: AdrienBalcioglu
       node_version:

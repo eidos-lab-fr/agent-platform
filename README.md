@@ -1,39 +1,65 @@
 # agent-platform
 
-Plateforme de développement piloté par agents pour les repos de `eidos-lab-fr`.
+Agent-driven development for GitHub repositories, built on GitHub Actions and [Claude Code](https://github.com/anthropics/claude-code-action).
 
-## Ce qu'elle fait
+A ticket goes in, a reviewed pull request comes out. Each repository plugs into the platform with four thin caller workflows; all the logic lives here, in reusable workflows and shared agent rules.
 
-Sur chaque repo branché :
+## How it works
 
-1. Un ticket avec un label `scope:<x>` puis `ready-for-dev` déclenche l'**agent de dev** du scope. Il lit la spec, écrit les tests, code et ouvre une PR sur une branche `agent/<numéro>-<slug>`.
-2. Chaque PR `agent/*` passe par **3 agents de review** en parallèle : spec et périmètre, sécurité, tests. Le verdict pose `review:ok` ou `review:changes`.
-3. Un commentaire `@claude` sur un ticket ou une PR lance une correction.
-4. Chaque repo a **son propre board** (GitHub Project). Un ticket créé arrive en Backlog, puis l'agent le fait avancer : En développement → PR ouverte → Revue humaine, ou Bloqué s'il pose `needs-human`.
+On every connected repository:
 
-## Organisation
+1. An issue labelled `scope:<x>` and then `ready-for-dev` starts the **dev agent** for that scope. It reads the spec, writes the tests, writes the code and opens a PR from a branch named `agent/<issue number>-<slug>`.
+2. Every `agent/*` PR goes through **three review agents** in parallel: spec and scope, security, tests. The verdict is a label: `review:ok` or `review:changes`.
+3. A `@claude` comment on an issue or a PR asks for a fix.
+4. Each repository has **its own board** (GitHub Project). A new issue lands in Backlog, then the agents move it: In development → PR open → Human review, or Blocked when an agent adds `needs-human`.
 
-| Dossier | Contenu |
+A human always merges. Agents cannot merge, cannot push to `main` and cannot force-push.
+
+## Layout
+
+| Path | Content |
 | --- | --- |
-| `.github/workflows/reusable-*.yml` | La logique des agents, appelée par chaque repo |
-| `.github/workflows/onboard-repo.yml` | Branche un nouveau repo en un clic |
-| `.github/workflows/board-setup.yml` | Crée ou reprend le board d'un repo, pose les colonnes, enregistre les identifiants |
-| `agents/` | Règles communes : agent de dev, agent sans scope, 3 relecteurs, agent d'onboarding |
-| `templates/` | Fichiers déposés dans chaque repo : appelants, template de ticket |
-| `scripts/set-status.sh` | Déplace une carte sur le board |
+| `.github/workflows/reusable-*.yml` | The agent logic, called by each repository |
+| `.github/workflows/onboard-repo.yml` | Connects a new repository in one click |
+| `.github/workflows/board-setup.yml` | Creates or reuses a repository's board, sets the columns, stores the IDs |
+| `agents/` | Shared rules: dev agent, scope-less dev agent, three reviewers, onboarding agent |
+| `templates/` | Files dropped into each repository: caller workflows, issue template |
+| `scripts/set-status.sh` | Moves a card on the board |
 
-Chaque repo garde ce qui lui est propre dans `.github/agents/` : un fichier `dev-<scope>.md` par scope, et en option `_commun-dev.md` et `review-<relecteur>.md`, qui s'ajoutent aux règles communes.
+Each repository keeps what is specific to it in `.github/agents/`: one `dev-<scope>.md` per scope, and optionally `_commun-dev.md` and `review-<reviewer>.md`, which add to the shared rules.
 
-## Brancher un nouveau repo
+The agent rules and workflow names are written in French, the working language of the team.
 
-1. **Actions** → **Onboarder un repo** → **Run workflow**, avec le nom du repo. Le board du repo est créé au passage.
-2. Relire et merger la PR ouverte par l'agent d'onboarding.
-3. Protéger la branche par défaut si l'org n'a pas de ruleset global.
+## Using it in your own organisation
 
-## Prérequis (une fois)
+The workflows reference `eidos-lab-fr/agent-platform`. To run the platform yourself:
 
-- Secrets de ce repo : `ANTHROPIC_API_KEY`, `PROJECT_TOKEN` (token classique avec les scopes `repo`, `project`, `workflow`).
-- **Settings → Actions → General → Access** : accessible depuis les repos de l'org.
-- App GitHub Claude installée sur tous les repos de l'org.
+1. Fork this repository into your organisation and replace `eidos-lab-fr/agent-platform` with `<your-org>/agent-platform` in `.github/workflows/` and `templates/callers/`.
+2. Add two secrets to your fork: `ANTHROPIC_API_KEY` and `PROJECT_TOKEN` (a classic token with the `repo`, `project` and `workflow` scopes).
+3. In **Settings → Actions → General → Access**, make the fork accessible from the repositories of your organisation.
+4. Install the Claude GitHub App on the repositories you want to connect.
+5. Set `allowed_users` in the caller workflows to the logins allowed to trigger agents (see below).
 
-Toute modification de ce repo s'applique immédiatement à tous les repos branchés : la tester d'abord sur `agent-sandbox`.
+## Connecting a repository
+
+1. **Actions** → **Onboarder un repo** → **Run workflow**, with the repository name. Its board is created along the way.
+2. Review and merge the PR opened by the onboarding agent.
+3. Protect the default branch if the organisation has no global ruleset.
+
+Any change to this repository applies immediately to every connected repository: test it on a sandbox repository first.
+
+## Security model
+
+Agents spend API credits and write code, so who can start them matters, especially on a public repository.
+
+- **Only allow-listed accounts trigger agents.** The dev agent and the `@claude` workflow check the login of the account that added the label or wrote the comment against `allowed_users`. A comment or a label from anyone else is ignored, and no API call is made.
+- **Forks never trigger agents.** Review agents only run on `agent/*` branches of the repository itself. A pull request from a fork is skipped, and GitHub does not hand secrets to fork PRs.
+- **Secrets stay in GitHub.** Nothing is hard-coded. A repository that calls these workflows uses its own secrets, never those of this repository.
+- **Agents have a narrow toolbox.** Each workflow lists the tools the agent may use. Merging, pushing to `main` and force-pushing are denied.
+- **Issue text is untrusted input.** On a public repository, anyone can open an issue. An agent only reads it once an allow-listed account labels it `ready-for-dev` or mentions `@claude`, so read an outside issue before you hand it to an agent.
+
+To report a vulnerability, open a [private security advisory](https://github.com/eidos-lab-fr/agent-platform/security/advisories/new).
+
+## License
+
+[MIT](LICENSE) © 2026 Eidos Lab

@@ -13,7 +13,10 @@ on:
 
 jobs:
   reset:
-    if: startsWith(github.head_ref, 'agent/')
+    # Branches agent/* du repo lui-même uniquement : une PR venue d'un fork ne lance aucun agent.
+    if: >-
+      startsWith(github.head_ref, 'agent/') &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     outputs:
       issue_url: ${{ steps.issue.outputs.url }}
