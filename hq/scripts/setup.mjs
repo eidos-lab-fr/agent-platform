@@ -144,14 +144,18 @@ if (token && !oauth) {
   }
 }
 
-// 5. Writing requests from a prompt
+// 5. AI for the specs (also set from the page AI settings)
 const ollama = (env.OLLAMA_URL || "http://127.0.0.1:11434").replace(/\/$/, "");
 const ollamaUp = await fetch(`${ollama}/api/tags`, { signal: AbortSignal.timeout(1500) })
   .then((r) => r.ok)
   .catch(() => false);
-if (ollamaUp) ok(`Requests rewritten by your local model (Ollama at ${ollama})`);
-else if (env.ANTHROPIC_API_KEY) ok("Requests rewritten by Claude (ANTHROPIC_API_KEY)");
-else warn("No Ollama and no ANTHROPIC_API_KEY: requests are structured by simple rules, without AI. Optional.");
+const claudeCode = spawnSync("claude", ["--version"], { encoding: "utf8", timeout: 5000 }).status === 0;
+const keys = ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "DEEPSEEK_API_KEY"].filter((k) => env[k]);
+if (ollamaUp) ok(`AI for specs: your local model (Ollama at ${ollama})`);
+if (claudeCode) ok("AI for specs: Claude Code is installed, your Claude subscription can be used");
+if (keys.length) ok(`AI for specs: ${keys.join(", ")} set`);
+if (!ollamaUp && !claudeCode && !keys.length)
+  warn("No AI found for specs: they are structured by simple rules. Optional: install Claude Code, or set a key in the page AI settings.");
 
 // 6. Port
 const free = await new Promise((resolve) => {

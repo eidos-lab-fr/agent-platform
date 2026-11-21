@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   if (prompt.length > 4000) return NextResponse.json({ ok: false, message: "Keep it under 4,000 characters." }, { status: 400 });
   const scopes = (body?.scopes ?? []).filter((s) => typeof s === "string" && /^[\w-]{1,40}$/.test(s)).slice(0, 20);
   try {
-    const draft = await draftSpec({ prompt, scopes, repo: String(body?.repo ?? "").slice(0, 100) });
+    const draft = await draftSpec({ prompt, scopes, repo: String(body?.repo ?? "").slice(0, 100) }, { hosted: g.mode === "oauth" });
     return NextResponse.json({ ok: true, message: "", draft });
   } catch (e) {
     return failure(e);
