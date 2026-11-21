@@ -1,6 +1,6 @@
 name: Onboarder un repo
 
-# Branche un repo de l'org sur la plateforme : labels, secrets, board dédié au repo,
+# Branche un repo de l'org sur la plateforme : labels et secrets,
 # puis un agent analyse le repo et ouvre une PR avec workflows, scopes et CLAUDE.md.
 
 on:
@@ -46,13 +46,6 @@ jobs:
           gh secret set ANTHROPIC_API_KEY --repo "$TARGET" --body "$ANTHROPIC_API_KEY"
           gh secret set PROJECT_TOKEN --repo "$TARGET" --body "$PROJECT_TOKEN"
           echo "Secrets copiés."
-
-  board:
-    needs: setup
-    uses: ./.github/workflows/board-setup.yml
-    with:
-      repo: ${{ inputs.repo }}
-    secrets: inherit
 
   agent:
     needs: setup

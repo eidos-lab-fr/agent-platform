@@ -6,7 +6,7 @@ on:
   workflow_call:
     inputs:
       allowed_users:
-        description: Logins autorisés à déclencher un agent, séparés par des virgules
+        description: Logins autorisés à déclencher un agent, séparés par des virgules. La variable d'organisation AGENT_ALLOWED_USERS, si elle existe, l'emporte.
         type: string
         default: AdrienBalcioglu
       node_version:
@@ -24,7 +24,7 @@ jobs:
   dev:
     if: >-
       github.event.label.name == 'ready-for-dev' &&
-      contains(format(',{0},', inputs.allowed_users), format(',{0},', github.event.sender.login))
+      contains(format(',{0},', vars.AGENT_ALLOWED_USERS || inputs.allowed_users), format(',{0},', github.event.sender.login))
     runs-on: ubuntu-latest
     timeout-minutes: 60
     concurrency: agent-dev-${{ github.repository }}-${{ github.event.issue.number }}
@@ -58,16 +58,6 @@ jobs:
           echo "scope=$SCOPE" >> "$GITHUB_OUTPUT"
           echo "Scope retenu : $SCOPE"
 
-      - name: Board → En développement
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
-          ORG: ${{ vars.ORG || github.repository_owner }}
-          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
-          PROJECT_ID: ${{ vars.PROJECT_ID }}
-          STATUS_FIELD_ID: ${{ vars.STATUS_FIELD_ID }}
-        run: bash .agent-platform/scripts/set-status.sh "${{ github.event.issue.html_url }}" "${{ vars.OPT_EN_DEV }}"
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node_version }}
@@ -84,7 +74,7 @@ jobs:
             3. .github/agents/_commun-dev.md, s'il existe
             4. ${{ steps.scope.outputs.file }}
             Ne modifie jamais le dossier .agent-platform/.
-            Ticket à traiter : #${{ github.event.issue.number }} (lis-le avec gh issue view ${{ github.event.issue.number }}).
+            Ticket à traiter : #${{ github.event.issue.number }} (lis-le avec gh issue view ${{ github.event.issue.number }} --comments : les réponses de l'humain sont dans les commentaires).
             Branche à créer : agent/${{ github.event.issue.number }}-<slug court>.
             Termine en ouvrant la PR avec gh pr create, ou en commentant le ticket avec le label needs-human si tu dois t'arrêter.
           claude_args: >-

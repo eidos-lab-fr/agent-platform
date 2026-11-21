@@ -6,7 +6,7 @@ on:
   workflow_call:
     inputs:
       allowed_users:
-        description: Logins autorisés à déclencher un agent, séparés par des virgules. Tout autre compte est ignoré.
+        description: Logins autorisés à déclencher un agent, séparés par des virgules. Tout autre compte est ignoré. La variable d'organisation AGENT_ALLOWED_USERS, si elle existe, l'emporte.
         type: string
         default: AdrienBalcioglu
       node_version:
@@ -19,7 +19,7 @@ on:
 jobs:
   claude:
     if: >-
-      contains(format(',{0},', inputs.allowed_users), format(',{0},', github.event.sender.login)) && (
+      contains(format(',{0},', vars.AGENT_ALLOWED_USERS || inputs.allowed_users), format(',{0},', github.event.sender.login)) && (
         (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
         (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
         (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
