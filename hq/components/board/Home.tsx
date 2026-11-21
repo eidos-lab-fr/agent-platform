@@ -21,7 +21,7 @@ function counts(cards: Card[]) {
 
 /** My projects: one card per repo, plus All projects. Opens the last project directly. */
 export function Home() {
-  const { state, act, reset } = useBoard();
+  const { state, act, reset, demo } = useBoard();
   const router = useRouter();
   const params = useSearchParams();
   const [adding, setAdding] = useState(false);
@@ -37,8 +37,17 @@ export function Home() {
     } catch {}
   }, [params, router]);
 
+  const [orgRepos, setOrgRepos] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (demo || !adding || orgRepos) return;
+    void fetch("/api/board/addable")
+      .then((r) => r.json() as Promise<{ repos?: string[] }>)
+      .then((r) => setOrgRepos(r.repos ?? []))
+      .catch(() => setOrgRepos([]));
+  }, [demo, adding, orgRepos]);
+
   const all = counts(state.cards);
-  const addable = DEMO_REPOS.filter((r) => !state.projects.some((p) => p.id === r));
+  const addable = (demo ? DEMO_REPOS : (orgRepos ?? [])).filter((r) => !state.projects.some((p) => p.id === r));
 
   return (
     <main className="page">
@@ -78,7 +87,9 @@ export function Home() {
             ) : (
               <>
                 <strong>Add a project</strong>
-                {!addable.length && <p className="muted small">Every repo is already here.</p>}
+                {!demo && <p className="muted small">HQ opens a setup pull request on the repo. Merge it and the project shows up here.</p>}
+                {!demo && !orgRepos && <p className="muted small">Looking at your organization…</p>}
+                {(demo || orgRepos) && !addable.length && <p className="muted small">Every repo is already here.</p>}
                 {addable.map((r, i) => (
                   <button
                     key={r}
@@ -95,9 +106,13 @@ export function Home() {
             )}
           </div>
         </div>
-        <p className="muted small home-foot">
-          Demo: nothing is sent to GitHub. <button className="link" onClick={reset}>Reset the demo</button>
-        </p>
+        {demo ? (
+          <p className="muted small home-foot">
+            Demo: nothing is sent to GitHub. <button className="link" onClick={reset}>Reset the demo</button>
+          </p>
+        ) : (
+          !state.projects.length && <p className="muted home-foot">No connected repo yet. Add one: HQ sets up the agents on it.</p>
+        )}
       </div>
     </main>
   );

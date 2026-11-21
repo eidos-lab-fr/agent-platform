@@ -110,10 +110,13 @@ function statusLine(card: Card, cards: Card[]): { text: string; tone: "" | "good
     }
     case "in_progress": {
       if (card.messages.some((m) => m.open)) return { text: "✋ Has a question for you", tone: "warn" };
+      if (card.live) return { text: card.live.text, tone: card.live.failed ? "bad" : "" };
       const steps = card.plan?.steps ?? [];
       return { text: `${steps.filter((s) => s.status === "done").length}/${steps.length} steps`, tone: "" };
     }
     case "review":
+      if (card.pr?.verdict === "changes") return { text: "Reviewers asked for changes", tone: "warn" };
+      if (card.pr && card.pr.verdict !== "ok") return { text: "Reviewers at work", tone: "" };
       return { text: card.change ? `+${card.change.additions} −${card.change.deletions} · ${card.change.files} files` : "Ready", tone: "good" };
     default:
       return { text: "", tone: "" };
@@ -159,7 +162,16 @@ function CardTile({ card, showProject, onOpen }: { card: Card; showProject: bool
       )}
       <span className={`status ${status.tone}`}>{status.text}</span>
       {card.column === "in_progress" && <span className="seats" aria-hidden />}
-      {card.column === "review" && reviewers.length > 0 && (
+      {card.column === "review" && card.pr && card.pr.reviews.length > 0 && (
+        <span className="reviewers">
+          {card.pr.reviews.map((r) => (
+            <span key={r.role} className={`rv ${r.result}`}>
+              {r.role} {r.result === "passed" ? "✓" : r.result === "failed" ? "✕" : "…"}
+            </span>
+          ))}
+        </span>
+      )}
+      {card.column === "review" && !card.pr && reviewers.length > 0 && (
         <span className="reviewers">
           {reviewers.map((r) => (
             <span key={r.id} className="rv" style={{ borderColor: r.color }}>

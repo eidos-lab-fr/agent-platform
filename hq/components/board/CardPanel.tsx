@@ -9,7 +9,7 @@ import { useBoard } from "./store";
 
 /** Everything about a card, or about one agent on it when opened from its avatar. */
 export function CardPanel({ card, workerId, onClose }: { card: Card; workerId?: string; onClose: () => void }) {
-  const { state, act } = useBoard();
+  const { state, act, demo } = useBoard();
   const team = teamOf(state, card.project);
   const worker = card.workers.find((w) => w.id === workerId);
   const agent = worker ? team.agents.find((a) => a.id === worker.agentId) : undefined;
@@ -24,6 +24,14 @@ export function CardPanel({ card, workerId, onClose }: { card: Card; workerId?: 
       <header>
         <span className="muted small">
           #{card.number} · {COLUMN_TEXT[card.column].name}
+          {card.url && (
+            <>
+              {" · "}
+              <a href={card.url} target="_blank" rel="noreferrer">
+                issue on GitHub
+              </a>
+            </>
+          )}
         </span>
         <button className="ghost" onClick={onClose} aria-label="Close">
           ✕
@@ -142,6 +150,20 @@ export function CardPanel({ card, workerId, onClose }: { card: Card; workerId?: 
         </section>
       )}
 
+      {card.live && (
+        <p className={`live small ${card.live.failed ? "status bad" : ""}`}>
+          <span className="live-dot" /> {card.live.text}
+          {card.live.url && (
+            <>
+              {" · "}
+              <a href={card.live.url} target="_blank" rel="noreferrer">
+                {card.live.url.includes("/actions/") ? "watch the run" : "open on GitHub"}
+              </a>
+            </>
+          )}
+        </p>
+      )}
+
       {card.column === "in_progress" && !worker && (
         <section className="block">
           <h3>Agents on it</h3>
@@ -184,7 +206,7 @@ export function CardPanel({ card, workerId, onClose }: { card: Card; workerId?: 
                 setReply("");
               }}
             >
-              <input value={reply} onChange={(e) => setReply(e.target.value)} placeholder={open ? "Your answer: the agent resumes right after" : "Ask the agents a question"} autoFocus={Boolean(open)} />
+              <input value={reply} onChange={(e) => setReply(e.target.value)} placeholder={open ? "Your answer: the agent resumes right after" : demo ? "Ask the agents a question" : "Leave a note on the issue: the agent reads it when it starts"} autoFocus={Boolean(open)} />
               <button className={open ? "primary" : ""} disabled={!reply.trim()}>
                 {open ? "Answer" : "Ask"}
               </button>
@@ -201,8 +223,30 @@ export function CardPanel({ card, workerId, onClose }: { card: Card; workerId?: 
               {card.change.files} files · <span className="add">+{card.change.additions}</span> <span className="del">−{card.change.deletions}</span>
             </p>
           )}
-          <p className="muted small">The reviewers of the team approved it. Have a look, then ship it.</p>
-          <button className="primary" onClick={() => act({ type: "ship", id: card.id })}>
+          {card.pr ? (
+            <>
+              <p className="small">
+                <a href={card.pr.url} target="_blank" rel="noreferrer">
+                  Pull request #{card.pr.number}
+                </a>
+                {card.pr.reviews.map((r) => (
+                  <span key={r.role} className={`rv ${r.result}`}>
+                    {r.role} {r.result === "passed" ? "✓" : r.result === "failed" ? "✕" : "…"}
+                  </span>
+                ))}
+              </p>
+              <p className="muted small">
+                {card.pr.verdict === "ok"
+                  ? "The reviewers approved it. Have a look, then ship it: HQ merges the pull request."
+                  : card.pr.verdict === "changes"
+                    ? "The reviewers asked for changes. Ask for a change, or wait for the fix."
+                    : "The reviewers are still checking it."}
+              </p>
+            </>
+          ) : (
+            <p className="muted small">The reviewers of the team approved it. Have a look, then ship it.</p>
+          )}
+          <button className="primary" disabled={Boolean(card.pr && card.pr.verdict !== "ok")} onClick={() => act({ type: "ship", id: card.id })}>
             Approve and ship
           </button>
           <form

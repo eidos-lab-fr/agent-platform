@@ -2,7 +2,7 @@
 
 One project board for your agents. You write an idea in your own words, the AI turns it into a spec, a planner splits it by code zone and checks what can run in parallel, and agents of the right color walk to the card and build it. You answer their questions on the card, then approve and ship.
 
-> This branch is the **demo** of the new board: everything runs in your browser, nothing is sent to GitHub yet. The GitHub wiring (projects = repos, cards = issues, agents = workflow runs) comes next. Only the AI settings and the spec writing call a real service.
+Signed in (local mode with the GitHub CLI, or OAuth), the board is your repos on GitHub. Without a token, or with `HQ_AUTH=demo`, it is a demo that runs in your browser and sends nothing.
 
 ## Run it
 
@@ -30,6 +30,23 @@ On your machine there is nothing to configure: Agent HQ signs in with the token 
 
 - **Teams** (`/teams`): ready-made teams (Web app, Content site, Solo) and your own. Each agent has one specialty, one color, its skills and its rules.
 - **AI settings** (`/settings`): where the AI comes from (see below).
+
+## On GitHub
+
+| On the board | On GitHub |
+| --- | --- |
+| A project | A connected repo (it has `.github/workflows/agent-dev.yml`), or one listed in `HQ_REPOS`. *+ Add a project* starts the onboarding workflow, which opens a setup pull request |
+| A card | An issue. Its body holds the need, then the spec and the plan as French sections the dev agent reads (`### Critères d'acceptation`…), plus a hidden `<!-- hq: … -->` line for HQ |
+| Its column | Labels `hq:idea`, `hq:specified`, `hq:planned`, `hq:waiting`; then `ready-for-dev` or a running *Agent dev* run (In progress), `needs-human` (a question), an open agent pull request (To approve), merged or closed (Shipped, 14 days) |
+| Its colors | Labels `zone:front`, `zone:back`, `zone:data`, `zone:docs` |
+| An agent at work | The *Agent dev* run of the issue: one run per card, with the agent file of the card's main zone (`scope:<zone>` when the repo has `.github/agents/dev-<zone>.md`, else the generalist) |
+| A question | The agent's comment with `needs-human`. *Answer* comments, removes the label and restarts the agent |
+| Ask the agents | A comment on the issue: the agent reads the comments each time it starts |
+| Ask for a change | `@claude <your words>` on the pull request |
+| Approve and ship | Squash merge of the pull request, only with `review:ok` and an `agent/` branch |
+| Delete | Closes the issue as not planned (reopen it on GitHub) |
+
+Waiting cards start on their own: each time HQ reads the board (every 10 seconds while a page is open), it adds `ready-for-dev` to the waiting cards the planner lets run. So HQ has to be open for a waiting card to start. Your teams and the team of each project are saved in `hq/.hq/board.json` on this computer.
 
 ## Zones, colors and parallelism
 
@@ -88,5 +105,6 @@ The live stream uses Server-Sent Events. It polls GitHub every 10 seconds while 
 
 ## Next steps
 
-1. GitHub wiring: projects from the connected repos, cards as issues with labels for columns and zones, workers as workflow runs on their branch, questions as `needs-human` comments, *Approve and ship* as the merge.
-2. The planner through the AI settings, reading the real repo tree for the files of each zone.
+1. The planner through the AI settings, reading the real repo tree for the files of each zone (today it guesses file names from the words of the card).
+2. One run per zone of a card (today one run covers all its zones), so clones really work on separate branches.
+3. Remove the old API routes (`/api/world`, `/api/stream`, `/api/actions`, `/api/teams`) and their libraries, no longer used by the board.

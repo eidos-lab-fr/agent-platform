@@ -1,5 +1,5 @@
 // The board model: projects, zones of code, agents, teams and cards.
-// Pure data, shared by the demo engine and (later) the GitHub adapter.
+// Pure data, shared by the demo engine and the GitHub adapter (lib/board/github-board.ts).
 
 /** A zone of the code a card touches. Each zone has the color of the agent that owns it. */
 export type ZoneId = "front" | "back" | "data" | "docs";
@@ -238,4 +238,10 @@ export interface Card {
   updatedAt: number;
   /** Demo only: the step after which the agent asks a question. */
   askAfter?: number;
+  /** GitHub only: the issue. */
+  url?: string;
+  /** GitHub only: what the agent's workflow run is doing right now, with its link. */
+  live?: { text: string; url: string | null; failed?: boolean };
+  /** GitHub only: the pull request of the change, with the reviewers' verdict. */
+  pr?: { number: number; url: string; verdict: "ok" | "changes" | null; reviews: { role: string; result: string }[] };
 }
