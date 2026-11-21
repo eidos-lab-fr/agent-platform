@@ -143,7 +143,7 @@ export function toQuestPR(pull: RawPull, data?: Pick<RawRepoData, "runs" | "jobs
   };
 }
 
-/** Board column of a quest, from its labels, its PR and running workflows. */
+/** Stage of a quest, from its labels, its PR and running workflows. */
 export function stageOf(input: {
   state: "open" | "closed";
   labels: string[];
@@ -156,8 +156,6 @@ export function stageOf(input: {
   if (pr && pr.state === "open") return pr.verdict === "ok" ? "revue_humaine" : "pr_ouverte";
   if (devRunning) return "en_developpement";
   if (labels.includes("ready-for-dev")) return "a_developper";
-  if (labels.includes("spec:prete")) return "spec_prete";
-  if (labels.includes("spec:en-cours")) return "spec_en_cours";
   return "backlog";
 }
 

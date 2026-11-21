@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { STAGES, STAGE_LABELS, type Stage } from "@/lib/types";
+import { STAGES, type Stage } from "@/lib/types";
 import { Forge } from "./Forge";
-import { SIMPLE_STAGE } from "./QuestPanel";
 import { useHQ } from "./HQ";
 import { ago, repoName } from "./util";
+import { stageText, word } from "./words";
 
-// The board becomes a path; the optional spec columns only show when used.
+// The board as a path, Blocked on the side.
 const PATH: Stage[] = STAGES.filter((s) => s !== "bloque");
 
 export function Quests() {
@@ -16,16 +16,14 @@ export function Quests() {
   const [forge, setForge] = useState(false);
   const [showDone, setShowDone] = useState(false);
   const quests = world.quests.filter((q) => repo === "tous" || q.repo === repo);
-  const cols: Stage[] = [...PATH.filter((s) => s !== "done" || showDone), "bloque" as Stage].filter(
-    (s) => !(["spec_en_cours", "spec_prete"] as Stage[]).includes(s) || quests.some((q) => q.stage === s),
-  );
+  const cols: Stage[] = [...PATH.filter((s) => s !== "done" || showDone), "bloque"];
 
   return (
     <div className="quests">
       <div className="atelier-bar">
         <div className="chips">
           <button className={repo === "tous" ? "active" : ""} onClick={() => setRepo("tous")}>
-            All repos
+            {word("allRepos", simple)}
           </button>
           {world.repos.map((r) => (
             <button key={r.fullName} className={repo === r.fullName ? "active" : ""} onClick={() => setRepo(r.fullName)}>
@@ -38,7 +36,7 @@ export function Quests() {
             <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} /> completed
           </label>
           <button className="primary" onClick={() => setForge(true)}>
-            {simple ? "+ New request" : "+ Forge a quest"}
+            {word("newQuest", simple)}
           </button>
         </div>
       </div>
@@ -49,7 +47,7 @@ export function Quests() {
           return (
             <section key={stage} className={`lane lane-${stage}`}>
               <h3>
-                {simple ? SIMPLE_STAGE[stage] : STAGE_LABELS[stage]} <span className="muted">{items.length}</span>
+                {stageText(stage, simple)} <span className="muted">{items.length}</span>
               </h3>
               {items.map((q) => (
                 <button key={q.id} className="quest-card" onClick={() => openQuest(q.id)}>

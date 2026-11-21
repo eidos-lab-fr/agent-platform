@@ -5,6 +5,7 @@
 import type { RawIssue, RawJob, RawPull, RawRepoData, RawRun } from "./derive";
 import { isActiveRun, WORKFLOW_REVIEW } from "./derive";
 import type { PRStats } from "./types";
+import { createHash } from "node:crypto";
 import { config } from "./config";
 
 export class GitHubError extends Error {
@@ -16,7 +17,17 @@ export class GitHubError extends Error {
   }
 }
 
+// Conditional requests: GitHub answers 304 when nothing changed, and a 304 does not count
+// against the 5,000 requests per hour of the token. Most polls of a quiet repo end there.
+const etags = new Map<string, { etag: string; data: unknown }>();
+/** Cache keys never hold the token itself. */
+const tokenKey = (token: string) => createHash("sha256").update(token).digest("hex").slice(0, 16);
+const MAX_ETAGS = 2000;
+
 export async function gh<T>(token: string, path: string, init: RequestInit = {}): Promise<T> {
+  const method = (init.method ?? "GET").toUpperCase();
+  const key = method === "GET" ? `${tokenKey(token)}:${path}` : null;
+  const cached = key ? etags.get(key) : undefined;
   const res = await fetch(`https://api.github.com${path}`, {
     ...init,
     headers: {
@@ -25,16 +36,29 @@ export async function gh<T>(token: string, path: string, init: RequestInit = {})
       "X-GitHub-Api-Version": "2022-11-28",
       "User-Agent": "agent-hq",
       ...(init.body ? { "Content-Type": "application/json" } : {}),
+      ...(cached ? { "If-None-Match": cached.etag } : {}),
       ...init.headers,
     },
     cache: "no-store",
   });
+  if (res.status === 304 && cached) return cached.data as T;
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new GitHubError(res.status, `GitHub ${res.status} on ${path}: ${text.slice(0, 200)}`);
   }
   if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  const data = (await res.json()) as T;
+  const etag = res.headers.get("etag");
+  if (key && etag) {
+    if (etags.size >= MAX_ETAGS) etags.delete(etags.keys().next().value!);
+    etags.set(key, { etag, data });
+  }
+  return data;
+}
+
+/** For tests. */
+export function clearEtags() {
+  etags.clear();
 }
 
 async function exists(token: string, path: string): Promise<boolean> {
@@ -64,7 +88,20 @@ export async function listConnectedRepos(token: string): Promise<string[]> {
   return repos;
 }
 
-async function listScopes(token: string, repo: string): Promise<string[]> {
+// Desks (scopes) only change when a setup PR is merged: read them every 5 minutes.
+const scopeCache = new Map<string, { at: number; scopes: Promise<string[]> }>();
+
+function listScopes(token: string, repo: string): Promise<string[]> {
+  const key = `${tokenKey(token)}:${repo}`;
+  const hit = scopeCache.get(key);
+  if (hit && Date.now() - hit.at < 5 * 60_000) return hit.scopes;
+  const scopes = readScopes(token, repo);
+  scopeCache.set(key, { at: Date.now(), scopes });
+  scopes.catch(() => scopeCache.delete(key));
+  return scopes;
+}
+
+async function readScopes(token: string, repo: string): Promise<string[]> {
   try {
     const files = await gh<{ name: string }[]>(token, `/repos/${repo}/contents/.github/agents`);
     return files

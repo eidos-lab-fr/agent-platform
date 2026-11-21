@@ -5,13 +5,14 @@ import type { Quest, Stage } from "@/lib/types";
 import { Forge } from "./Forge";
 import { useHQ } from "./HQ";
 import { ago, repoName } from "./util";
+import { word } from "./words";
 
 // Product view: what is live on main, what is being built (one branch per request), what comes next.
 
 const MILESTONES = ["Started", "Built", "Reviewed", "Live"];
 const STEP_OF: Partial<Record<Stage, number>> = { a_developper: 0, en_developpement: 1, bloque: 1, pr_ouverte: 2, revue_humaine: 3, done: 4 };
 const IN_PROGRESS: Stage[] = ["a_developper", "en_developpement", "bloque", "pr_ouverte", "revue_humaine"];
-const BACKLOG: Stage[] = ["backlog", "spec_en_cours", "spec_prete"];
+const BACKLOG: Stage[] = ["backlog"];
 
 export function statusText(q: Quest, simple: boolean): string {
   switch (q.stage) {
@@ -46,7 +47,7 @@ export function Roadmap() {
       <div className="atelier-bar">
         <div className="chips">
           <button className={repo === "all" ? "active" : ""} onClick={() => setRepo("all")}>
-            All products
+            {word("allRepos", simple)}
           </button>
           {world.repos.map((r) => (
             <button key={r.fullName} className={repo === r.fullName ? "active" : ""} onClick={() => setRepo(r.fullName)}>

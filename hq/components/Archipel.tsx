@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useHQ } from "./HQ";
 import { Sprite } from "./arcade/Sprite";
+import { word } from "./words";
 
 export function Archipel() {
-  const { world, act, busy } = useHQ();
+  const { world, act, busy, simple } = useHQ();
+  const w = (k: Parameters<typeof word>[0]) => word(k, simple);
   const [name, setName] = useState("");
 
   return (
@@ -18,7 +20,7 @@ export function Archipel() {
           return (
             <section key={r.fullName} className="island">
               <header>
-                <h2>🏝️ {r.name}</h2>
+                <h2>{simple ? "" : "🏝️ "}{r.name}</h2>
                 <a href={r.url} target="_blank" rel="noreferrer" className="muted small">
                   {r.fullName}
                 </a>
@@ -34,15 +36,15 @@ export function Archipel() {
                     <article key={s} className="agent-card">
                       <div className="agent-card-top">
                         <Sprite role="dev" activity={mine.length ? "working" : "idle"} size={56} />
-                        <span className="card-level">Lvl {level}</span>
+                        {!simple && <span className="card-level">Lvl {level}</span>}
                       </div>
-                      <h3>Dev {s}</h3>
+                      <h3>{simple ? (s === "general" ? "Builder" : `Builder · ${s}`) : `Dev ${s}`}</h3>
                       <dl>
-                        <dt>Quests completed</dt>
+                        <dt>{simple ? "Shipped" : "Quests completed"}</dt>
                         <dd>{mine.length}</dd>
                         <dt>First try</dt>
                         <dd>{mine.length ? `${Math.round((firstTry / mine.length) * 100)} %` : "—"}</dd>
-                        <dt>Issue → PR</dt>
+                        <dt>{simple ? "Time to first version" : "Issue → PR"}</dt>
                         <dd>{avg ? `${Math.round(avg / 3_600_000)} h` : "—"}</dd>
                       </dl>
                     </article>
@@ -53,20 +55,17 @@ export function Archipel() {
           );
         })}
         <section className="island fog">
-          <h2>🌫️ Unknown island</h2>
-          <p className="muted">
-            Connecting a new repo runs agent-platform's "Onboarder un repo" workflow: labels, secrets, board, then a setup PR
-            for you to merge.
-          </p>
+          <h2>{w("connect")}</h2>
+          <p className="muted">{w("connectHint")}</p>
           <form
             onSubmit={async (e) => {
               e.preventDefault();
               if ((await act({ type: "onboard", repo: name.trim() })).ok) setName("");
             }}
           >
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="repo-name (without the org)" />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={w("repoPlaceholder")} />
             <button className="primary" disabled={busy || !name.trim()}>
-              Explore the island
+              {w("connectButton")}
             </button>
           </form>
         </section>

@@ -10,19 +10,28 @@ import { Dashboard } from "./Dashboard";
 import { QuestPanel } from "./QuestPanel";
 import { Quests } from "./Quests";
 import { Roadmap } from "./Roadmap";
+import { Settings } from "./Settings";
 import { TeamTab } from "./Team";
 import { TeamWizard } from "./TeamWizard";
 
-export type Tab = "qg" | "atelier" | "roadmap" | "quetes" | "equipe" | "archipel";
-// Simple mode speaks product; Dev mode speaks GitHub.
-const TABS: { id: Tab; simple: string; dev: string }[] = [
-  { id: "qg", simple: "Home", dev: "HQ" },
-  { id: "roadmap", simple: "Roadmap", dev: "Roadmap" },
-  { id: "atelier", simple: "Workshop", dev: "Workshop" },
-  { id: "quetes", simple: "Board", dev: "Quests" },
-  { id: "equipe", simple: "Team", dev: "Team" },
-  { id: "archipel", simple: "Products", dev: "Archipelago" },
+export type Tab = "qg" | "atelier" | "roadmap" | "quetes" | "equipe" | "archipel" | "reglages";
+// Simple mode (for a PM) has three tabs and speaks product; Dev mode has every view and speaks GitHub.
+const SIMPLE_TABS: { id: Tab; label: string }[] = [
+  { id: "qg", label: "To do" },
+  { id: "roadmap", label: "Requests" },
+  { id: "reglages", label: "Settings" },
 ];
+const DEV_TABS: { id: Tab; label: string }[] = [
+  { id: "qg", label: "HQ" },
+  { id: "roadmap", label: "Roadmap" },
+  { id: "atelier", label: "Workshop" },
+  { id: "quetes", label: "Quests" },
+  { id: "equipe", label: "Team" },
+  { id: "archipel", label: "Archipelago" },
+];
+/** The tab to show when the mode changes. */
+const toSimple: Partial<Record<Tab, Tab>> = { atelier: "qg", quetes: "roadmap", equipe: "reglages", archipel: "reglages" };
+const toDev: Partial<Record<Tab, Tab>> = { reglages: "equipe" };
 
 export type TeamOp =
   | { op: "create"; template: string | null; name?: string }
@@ -52,7 +61,12 @@ export const useHQ = () => {
   return c;
 };
 
-export function HQ({ initial }: { initial: World | null }) {
+export interface SetupNotice {
+  problem: string;
+  fix: string;
+}
+
+export function HQ({ initial, notice }: { initial: World | null; notice: SetupNotice | null }) {
   const [world, setWorld] = useState<World | null>(initial);
   const [tab, setTab] = useState<Tab>("qg");
   const [questId, setQuestId] = useState<string | null>(null);
@@ -60,8 +74,13 @@ export function HQ({ initial }: { initial: World | null }) {
   const [problem, setProblem] = useState<string | null>(null);
   const [live, setLive] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [sober, setSober] = useState(false);
-  const [simple, setSimple] = useState(true);
+  const [simple, setSimpleMode] = useState(true);
+  const [workshop, setWorkshop] = useState(false);
+  const tabs = simple ? SIMPLE_TABS : DEV_TABS;
+  const setSimple = (on: boolean) => {
+    setSimpleMode(on);
+    setTab((t) => (on ? (toSimple[t] ?? t) : (toDev[t] ?? t)));
+  };
   const [teams, setTeams] = useState<Team[] | null>(null);
   const [wizard, setWizard] = useState(false);
   // Durations ("3 min ago") depend on the browser clock: render on the client only.
@@ -70,19 +89,18 @@ export function HQ({ initial }: { initial: World | null }) {
 
   useEffect(() => {
     try {
+      const isSimple = localStorage.getItem("hq-mode") !== "dev";
+      setSimpleMode(isSimple);
       const saved = localStorage.getItem("hq-tab") as Tab | null;
-      if (saved && TABS.some((t) => t.id === saved)) setTab(saved);
-      setSober(localStorage.getItem("hq-sober") === "1");
-      setSimple(localStorage.getItem("hq-mode") !== "dev");
+      if (saved && (isSimple ? SIMPLE_TABS : DEV_TABS).some((t) => t.id === saved)) setTab(saved);
     } catch {}
   }, []);
   useEffect(() => {
     try {
       localStorage.setItem("hq-tab", tab);
-      localStorage.setItem("hq-sober", sober ? "1" : "0");
       localStorage.setItem("hq-mode", simple ? "simple" : "dev");
     } catch {}
-  }, [tab, sober, simple]);
+  }, [tab, simple]);
 
   // Teams: a new user with no team is offered the wizard once.
   useEffect(() => {
@@ -182,58 +200,97 @@ export function HQ({ initial }: { initial: World | null }) {
   const blocked = world.quests.filter((q) => q.stage === "bloque").length;
 
   return (
-    <Ctx.Provider value={{ world, act, openQuest: setQuestId, busy, simple, setTab, teams, teamOp, notify }}>
-      <div className={`app ${sober ? "sober" : ""} ${simple ? "simple" : "dev"}`}>
+    <Ctx.Provider
+      value={{
+        world,
+        act,
+        openQuest: (id: string) => {
+          setWorkshop(false);
+          setQuestId(id);
+        },
+        busy,
+        simple,
+        setTab,
+        teams,
+        teamOp,
+        notify,
+      }}
+    >
+      {/* Simple mode is calm: no game animations. Dev mode is the full game. */}
+      <div className={`app ${simple ? "simple sober" : "dev"}`}>
         <header className="topbar">
           <div className="brand">
             <span className="brand-mark">◆</span> Agent HQ
             {world.mode === "demo" && <span className="badge demo">demo</span>}
           </div>
           <nav className="tabs" aria-label="Tabs">
-            {TABS.map((t) => (
+            {tabs.map((t) => (
               <button key={t.id} className={tab === t.id ? "active" : ""} onClick={() => setTab(t.id)}>
-                {simple ? t.simple : t.dev}
-                {t.id === "qg" && blocked > 0 && <span className="dot" aria-label={`${blocked} agents waiting`}>{blocked}</span>}
+                {t.label}
+                {t.id === "qg" && blocked > 0 && <span className="dot" aria-label={`${blocked} waiting for you`}>{blocked}</span>}
               </button>
             ))}
           </nav>
           <div className="player">
-            <div className="level" title={`${p.xp} XP`}>
-              <span className="lvl">Lvl {p.level}</span>
-              <span className="xpbar">
-                <span style={{ width: `${Math.round((p.xpIntoLevel / p.xpForNextLevel) * 100)}%` }} />
-              </span>
-            </div>
+            {!simple && (
+              <div className="level" title={`${p.xp} XP`}>
+                <span className="lvl">Lvl {p.level}</span>
+                <span className="xpbar">
+                  <span style={{ width: `${Math.round((p.xpIntoLevel / p.xpForNextLevel) * 100)}%` }} />
+                </span>
+              </div>
+            )}
             <span className={`live ${live ? "on" : ""}`} title={live ? "Live" : "Offline"} />
             <div className="mode-switch" role="group" aria-label="Interface mode">
-              <button className={simple ? "active" : ""} onClick={() => setSimple(true)} title="Product words, no GitHub jargon">
+              <button className={simple ? "active" : ""} onClick={() => setSimple(true)} title="Product words, three tabs, no animations">
                 Simple
               </button>
-              <button className={!simple ? "active" : ""} onClick={() => setSimple(false)} title="Branches, labels, runs and PR numbers">
+              <button className={!simple ? "active" : ""} onClick={() => setSimple(false)} title="Every view: branches, labels, runs, PR numbers, the Workshop game">
                 Dev
               </button>
             </div>
-            <button className="ghost small" onClick={() => setSober(!sober)} title="Calm mode: fewer animations">
-              {sober ? "Game mode" : "Calm mode"}
-            </button>
-            {world.mode === "github" ? (
+            {world.auth === "oauth" ? (
               <form action="/api/auth/logout" method="post">
                 <button className="ghost small">{world.login} · sign out</button>
               </form>
+            ) : world.auth === "local" ? (
+              <span className="muted small" title="Signed in with the GitHub CLI token of this machine">
+                {world.login}
+              </span>
             ) : null}
           </div>
         </header>
 
+        {notice && world.mode === "demo" && (
+          <div className="banner">
+            <strong>Demo mode.</strong> {notice.problem} {notice.fix}
+          </div>
+        )}
         {problem && <div className="banner error">GitHub is not responding as expected: {problem}</div>}
 
         <main className="content">
-          {tab === "qg" && <Dashboard onTab={(t) => setTab(t as Tab)} />}
+          {tab === "qg" && <Dashboard onWorkshop={() => (simple ? setWorkshop(true) : setTab("atelier"))} />}
           {tab === "atelier" && <Atelier />}
           {tab === "roadmap" && <Roadmap />}
           {tab === "quetes" && <Quests />}
           {tab === "equipe" && <TeamTab onWizard={() => setWizard(true)} />}
           {tab === "archipel" && <Archipel />}
+          {tab === "reglages" && <Settings onWizard={() => setWizard(true)} />}
         </main>
+
+        {workshop && (
+          <div className="overlay" onClick={() => setWorkshop(false)}>
+            <div className="modal workshop-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Workshop">
+              <header>
+                <h2>Workshop</h2>
+                <button className="ghost" onClick={() => setWorkshop(false)} aria-label="Close">
+                  ✕
+                </button>
+              </header>
+              <Atelier />
+            </div>
+          </div>
+        )}
 
         {quest && <QuestPanel quest={quest} onClose={() => setQuestId(null)} />}
         {wizard && (
@@ -241,7 +298,7 @@ export function HQ({ initial }: { initial: World | null }) {
             onClose={closeWizard}
             onDone={() => {
               closeWizard();
-              setTab("equipe");
+              setTab(simple ? "reglages" : "equipe");
             }}
           />
         )}

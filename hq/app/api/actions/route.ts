@@ -1,28 +1,19 @@
 import { NextResponse } from "next/server";
 import { runAction, runDemoAction, validate, type Action } from "@/lib/actions";
-import { config, isDemo } from "@/lib/config";
 import { GitHubError } from "@/lib/github";
-import { getSession } from "@/lib/session";
+import { guard } from "@/lib/route-guard";
 import { invalidateWorld } from "@/lib/world";
 
 export async function POST(req: Request) {
-  // CSRF protection: the request must come from the app itself.
-  const origin = req.headers.get("origin");
-  if (!isDemo() && origin !== new URL(config.appUrl).origin) {
-    return NextResponse.json({ ok: false, message: "Origin refused." }, { status: 403 });
-  }
+  const g = await guard(req);
+  if ("error" in g) return g.error;
   const action = (await req.json().catch(() => null)) as Action | null;
   const problem = validate(action as Action);
   if (problem) return NextResponse.json({ ok: false, message: problem }, { status: 400 });
-
-  const session = await getSession();
-  if (!session) {
-    if (isDemo()) return NextResponse.json(runDemoAction(action!));
-    return NextResponse.json({ ok: false, message: "Not signed in." }, { status: 401 });
-  }
+  if (!g.session) return NextResponse.json(runDemoAction(action!));
   try {
-    const result = await runAction(session, action!);
-    invalidateWorld(session.login);
+    const result = await runAction(g.session, action!);
+    invalidateWorld(g.session.login);
     return NextResponse.json(result, { status: result.ok ? 200 : 409 });
   } catch (e) {
     const status = e instanceof GitHubError ? e.status : 500;

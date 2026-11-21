@@ -28,20 +28,25 @@ const ENGINE_TEXT: Record<SpecDraft["engine"], string> = {
 };
 
 export function Forge({ onClose, defaultRepo }: { onClose: () => void; defaultRepo?: string }) {
-  const [mode, setMode] = useState<"prompt" | "manual">("prompt");
+  const { simple } = useHQ();
+  const [picked, setMode] = useState<"prompt" | "manual">("prompt");
+  // Writing by hand with a spec path is a Dev mode tool: Simple mode always describes the need.
+  const mode = simple ? "prompt" : picked;
   return (
     <div className="overlay" onClick={onClose}>
       <div className="modal forge" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="New request">
         <header>
-          <h2>⚒️ New request</h2>
-          <div className="mode-switch" role="group" aria-label="How to write it">
-            <button className={mode === "prompt" ? "active" : ""} onClick={() => setMode("prompt")}>
-              ✨ Describe it
-            </button>
-            <button className={mode === "manual" ? "active" : ""} onClick={() => setMode("manual")}>
-              ✍️ By hand
-            </button>
-          </div>
+          <h2>{simple ? "New request" : "⚒️ New quest"}</h2>
+          {!simple && (
+            <div className="mode-switch" role="group" aria-label="How to write it">
+              <button className={mode === "prompt" ? "active" : ""} onClick={() => setMode("prompt")}>
+                ✨ Describe it
+              </button>
+              <button className={mode === "manual" ? "active" : ""} onClick={() => setMode("manual")}>
+                ✍️ By hand
+              </button>
+            </div>
+          )}
           <button className="ghost" onClick={onClose} aria-label="Close">
             ✕
           </button>

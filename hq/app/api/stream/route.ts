@@ -1,15 +1,20 @@
 // Live stream (Server-Sent Events): the world is sent again whenever it changes.
+// GitHub is polled every 10 s while an agent is at work, every 30 s otherwise, to keep
+// well under the 5,000 requests per hour of your token.
 
-import { isDemo } from "@/lib/config";
-import { getSession } from "@/lib/session";
-import { getWorld } from "@/lib/world";
+import { guard } from "@/lib/route-guard";
+import { getWorld, isBusy } from "@/lib/world";
 
 export const dynamic = "force-dynamic";
 
+const BUSY = 10_000;
+const QUIET = 30_000;
+const DEMO = 2_000;
+
 export async function GET(req: Request) {
-  const session = await getSession();
-  if (!session && !isDemo()) return new Response("Not signed in", { status: 401 });
-  const interval = session ? 10_000 : 2_000;
+  const g = await guard(req);
+  if ("error" in g) return g.error;
+  const { session, mode } = g;
   const encoder = new TextEncoder();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let closed = false;
@@ -20,8 +25,10 @@ export async function GET(req: Request) {
       const send = (event: string, data: string) => controller.enqueue(encoder.encode(`event: ${event}\ndata: ${data}\n\n`));
       const tick = async () => {
         if (closed) return;
+        let interval = session ? QUIET : DEMO;
         try {
-          const world = await getWorld(session);
+          const world = await getWorld(session, mode);
+          if (session && isBusy(world)) interval = BUSY;
           const { generatedAt, ...rest } = world;
           const fingerprint = JSON.stringify(rest);
           if (fingerprint !== last) {

@@ -13,7 +13,17 @@ export interface Session {
   exp: number;
 }
 
-const key = () => createHash("sha256").update(config.sessionSecret).digest();
+// Without SESSION_SECRET, a random key per server process: sessions end when the server restarts,
+// which is fine on your machine. Set SESSION_SECRET on a hosted setup (`npm run setup` writes one).
+const processSecret = randomBytes(32).toString("hex");
+let warned = false;
+const key = () => {
+  if (!config.sessionSecret && !warned) {
+    warned = true;
+    console.warn("[agent-hq] SESSION_SECRET is not set: using a temporary key, you will be signed out when the server restarts.");
+  }
+  return createHash("sha256").update(config.sessionSecret || processSecret).digest();
+};
 
 export function seal(session: Session): string {
   const iv = randomBytes(12);
@@ -37,18 +47,18 @@ export function unseal(value: string): Session | null {
   }
 }
 
+/** The OAuth session from the cookie (see lib/auth.ts for local mode). */
 export async function getSession(): Promise<Session | null> {
-  if (!config.sessionSecret) return null;
   const c = (await cookies()).get(SESSION_COOKIE);
   return c ? unseal(c.value) : null;
 }
 
-export function sessionCookie(login: string, token: string) {
+export function sessionCookie(login: string, token: string, secure: boolean) {
   return {
     name: SESSION_COOKIE,
     value: seal({ login, token, exp: Date.now() + MAX_AGE * 1000 }),
     httpOnly: true,
-    secure: config.appUrl.startsWith("https://"),
+    secure,
     sameSite: "lax" as const,
     path: "/",
     maxAge: MAX_AGE,

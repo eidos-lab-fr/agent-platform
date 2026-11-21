@@ -1,10 +1,8 @@
 // The world model shown by Agent HQ. Everything is derived from GitHub (or simulated in demo mode).
 
-/** agent-platform board columns (board-setup.yml). */
+/** Where a request stands, derived from its labels and its PR (see lib/derive.ts). */
 export const STAGES = [
   "backlog",
-  "spec_en_cours",
-  "spec_prete",
   "a_developper",
   "en_developpement",
   "pr_ouverte",
@@ -13,18 +11,6 @@ export const STAGES = [
   "bloque",
 ] as const;
 export type Stage = (typeof STAGES)[number];
-
-export const STAGE_LABELS: Record<Stage, string> = {
-  backlog: "Backlog",
-  spec_en_cours: "Spec in progress",
-  spec_prete: "Spec ready",
-  a_developper: "Ready for dev",
-  en_developpement: "In development",
-  pr_ouverte: "PR open",
-  revue_humaine: "Human review",
-  done: "Done",
-  bloque: "Blocked",
-};
 
 export type Verdict = "ok" | "changes" | null;
 
@@ -140,6 +126,8 @@ export interface Progress {
 
 export interface World {
   mode: "github" | "demo";
+  /** How the user is signed in: GitHub CLI token, OAuth App, or demo. */
+  auth: "local" | "oauth" | "demo";
   login: string;
   generatedAt: string;
   repos: Repo[];

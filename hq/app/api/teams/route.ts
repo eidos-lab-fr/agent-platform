@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { isDemo } from "@/lib/config";
 import { failure, guard } from "@/lib/route-guard";
-import { getSession } from "@/lib/session";
 import { deployToRepo, filesForRepo } from "@/lib/team-deploy";
 import { demoStore, githubStore } from "@/lib/team-store";
 import { teamFromTemplate } from "@/lib/team-templates";
@@ -16,11 +14,11 @@ type Op =
   | { op: "preview"; id: string; repo: string }
   | { op: "deploy"; id: string; repo: string };
 
-export async function GET() {
-  const session = await getSession();
-  if (!session && !isDemo()) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+export async function GET(req: Request) {
+  const g = await guard(req);
+  if ("error" in g) return g.error;
   try {
-    const store = session ? githubStore(session.token) : demoStore;
+    const store = g.session ? githubStore(g.session.token) : demoStore;
     return NextResponse.json({ teams: await store.list() });
   } catch (e) {
     return failure(e);

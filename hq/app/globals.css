@@ -321,6 +321,9 @@ a.big {
   grid-template-columns: 3fr 2fr;
   gap: 16px;
 }
+.columns.single {
+  grid-template-columns: minmax(0, 960px);
+}
 @media (max-width: 900px) {
   .columns {
     grid-template-columns: 1fr;
@@ -462,11 +465,23 @@ blockquote {
     opacity: 0;
   }
 }
-.sober *,
-.sober *::before,
-.sober *::after {
+/* Simple mode is calm, except in the Workshop window, which is there to watch the agents move. */
+.sober *:not(.workshop-modal *),
+.sober *:not(.workshop-modal *)::before,
+.sober *:not(.workshop-modal *)::after {
   animation: none !important;
   transition: none !important;
+}
+.modal.workshop-modal {
+  width: min(1200px, 96vw);
+  max-height: 92vh;
+  overflow: auto;
+}
+.settings-title {
+  margin: 24px 0 12px;
+}
+.settings-title:first-child {
+  margin-top: 0;
 }
 @media (prefers-reduced-motion: reduce) {
   * {

@@ -4,10 +4,11 @@ import { deriveActivity, deriveAgents, deriveQuests, type RawRepoData } from "./
 import { demoRawData } from "./demo";
 import { fetchRepoData, listConnectedRepos } from "./github";
 import { computeProgress } from "./progress";
+import type { AuthMode } from "./auth";
 import type { Session } from "./session";
 import type { World } from "./types";
 
-export function assembleWorld(raw: RawRepoData[], mode: World["mode"], login: string, now = new Date()): World {
+export function assembleWorld(raw: RawRepoData[], mode: World["mode"], login: string, now = new Date(), auth: AuthMode = mode === "demo" ? "demo" : "local"): World {
   const quests = raw.flatMap(deriveQuests);
   const agents = raw.flatMap((r) => deriveAgents(r, quests.filter((q) => q.repo === r.repo)));
   const activity = raw
@@ -24,6 +25,7 @@ export function assembleWorld(raw: RawRepoData[], mode: World["mode"], login: st
   quests.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
   return {
     mode,
+    auth,
     login,
     generatedAt: now.toISOString(),
     repos,
@@ -37,14 +39,14 @@ export function assembleWorld(raw: RawRepoData[], mode: World["mode"], login: st
 const cache = new Map<string, { at: number; world: Promise<World> }>();
 const TTL = 8_000;
 
-export function getWorld(session: Session | null): Promise<World> {
+export function getWorld(session: Session | null, auth: AuthMode): Promise<World> {
   if (!session) return Promise.resolve(assembleWorld(demoRawData(), "demo", "demo"));
   const hit = cache.get(session.login);
   if (hit && Date.now() - hit.at < TTL) return hit.world;
   const world = (async () => {
     const repos = await listConnectedRepos(session.token);
     const raw = await Promise.all(repos.map((r) => fetchRepoData(session.token, r)));
-    return assembleWorld(raw, "github", session.login);
+    return assembleWorld(raw, "github", session.login, new Date(), auth);
   })();
   cache.set(session.login, { at: Date.now(), world });
   world.catch(() => cache.delete(session.login));
@@ -53,4 +55,9 @@ export function getWorld(session: Session | null): Promise<World> {
 
 export function invalidateWorld(login: string) {
   cache.delete(login);
+}
+
+/** True while an agent is doing something: the stream then polls GitHub more often. */
+export function isBusy(world: World): boolean {
+  return world.agents.some((a) => a.activity === "working" || a.activity === "preparing" || a.activity === "queued" || a.activity === "reviewing");
 }

@@ -100,14 +100,10 @@ export async function runAction(session: Session, a: Action): Promise<ActionResu
       await launch(t, a.repo, a.number, a.scope);
       return { ok: true, message: `An agent is on its way to #${a.number}.` };
     case "answer": {
-      // The agent rereads the issue with gh issue view, which does not show comments,
-      // so the answer is appended to the issue body, and also posted as a comment.
-      const issue = await gh<{ body: string | null }>(t, `/repos/${a.repo}/issues/${a.number}`);
-      const body = `${issue.body ?? ""}\n\n### Clarification (answer to the agent)\n\n${a.text.trim()}`;
-      await gh(t, `/repos/${a.repo}/issues/${a.number}`, { method: "PATCH", body: JSON.stringify({ body }) });
+      // The dev agent reads the issue with `gh issue view --comments`: a comment is enough.
       await gh(t, `/repos/${a.repo}/issues/${a.number}/comments`, {
         method: "POST",
-        body: JSON.stringify({ body: `Answer: ${a.text.trim()}\n\n_Added to the issue description from Agent HQ; the agent has been restarted._` }),
+        body: JSON.stringify({ body: `${a.text.trim()}\n\n_Answer sent from Agent HQ; the agent has been restarted._` }),
       });
       await removeLabel(t, a.repo, a.number, "needs-human");
       await launch(t, a.repo, a.number);

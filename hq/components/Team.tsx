@@ -5,6 +5,7 @@ import { duplicateAgent, newId, slug, TEAM_ROLES, validateTeam, type AgentFile, 
 import { useHQ } from "./HQ";
 import { Sprite } from "./arcade/Sprite";
 import { repoName } from "./util";
+import { word } from "./words";
 
 export const ROLE_TEXT: Record<TeamRole, { simple: string; dev: string; hint: string }> = {
   dev: { simple: "Builder", dev: "Dev agent", hint: "Writes the code for the requests of its desk." },
@@ -108,11 +109,13 @@ export function TeamTab({ onWizard }: { onWizard: () => void }) {
               </div>
             </div>
             <p className="small">{a.mission || <span className="muted">No mission yet</span>}</p>
-            <div className="team-agent-meta small">
-              <span title="Skills">📚 {a.skills.length}</span>
-              <span title="Guardrails">🛡️ {a.guardrails.length}</span>
-              <span title="Islands">🏝️ {a.placements.length}</span>
-            </div>
+            {!simple && (
+              <div className="team-agent-meta small">
+                <span title="Skills">📚 {a.skills.length}</span>
+                <span title="Guardrails">🛡️ {a.guardrails.length}</span>
+                <span title="Islands">🏝️ {a.placements.length}</span>
+              </div>
+            )}
             <div className="chips small">
               {a.placements.map((p) => (
                 <span key={`${p.repo}:${p.scope}`} className="tag">
@@ -178,7 +181,7 @@ function Deploy({ team, saved, dirty }: { team: Team; saved: Team; dirty: boolea
           ? "Each product gets a change request with the agents' instructions. Once you approve it, the agents use them on every new request."
           : "One PR per island: .github/agents/dev-<desk>.md, review-<role>.md (your existing rules are kept) and the skill and guardrail files, plus the scope:<desk> labels."}
       </p>
-      {!repos.length && <p className="muted">Open an agent and place it on an island first.</p>}
+      {!repos.length && <p className="muted">Open an agent and place it on a {word("repo", simple)} first.</p>}
       <ul className="deploys">
         {repos.map((repo) => {
           const d = saved.deployments.find((x) => x.repo === repo);
@@ -187,7 +190,7 @@ function Deploy({ team, saved, dirty }: { team: Team; saved: Team; dirty: boolea
           return (
             <li key={repo}>
               <div>
-                <strong>🏝️ {repoName(repo)}</strong> <span className="muted small">{here.map((a) => a.name).join(", ")}</span>
+                <strong>{simple ? "" : "🏝️ "}{repoName(repo)}</strong> <span className="muted small">{here.map((a) => a.name).join(", ")}</span>
                 {!known && <span className="badge">not connected yet</span>}
                 {d && (
                   <span className="muted small">
@@ -272,7 +275,7 @@ function AgentEditor({
             Mission <span className="muted small">(one sentence: what this agent is good at)</span>
             <input value={a.mission} onChange={(e) => set({ mission: e.target.value })} />
           </label>
-          {a.role === "dev" && (
+          {a.role === "dev" && !simple && (
             <label className="wide">
               Files it may change <span className="muted small">(one path or pattern per line, e.g. src/components/**)</span>
               <textarea
@@ -294,26 +297,33 @@ function AgentEditor({
           </label>
         </div>
 
-        <Files title="📚 Skills" hint="Know-how the agent reads before working: conventions, how-tos, examples." files={a.skills} onChange={(skills) => set({ skills })} />
-        <Files
-          title="🛡️ Guardrails"
-          hint="What the agent must never do. If a request asks for it, the agent stops and asks you."
-          files={a.guardrails}
-          onChange={(guardrails) => set({ guardrails })}
-        />
+        {/* Skills, guardrails, file perimeter, several desks and duplicates are Dev mode tools. */}
+        {!simple && (
+          <>
+            <Files title="📚 Skills" hint="Know-how the agent reads before working: conventions, how-tos, examples." files={a.skills} onChange={(skills) => set({ skills })} />
+            <Files
+              title="🛡️ Guardrails"
+              hint="What the agent must never do. If a request asks for it, the agent stops and asks you."
+              files={a.guardrails}
+              onChange={(guardrails) => set({ guardrails })}
+            />
+          </>
+        )}
 
         <section className="editor-block">
-          <h3>🏝️ Islands</h3>
+          <h3>{word("placements", simple)}</h3>
           <p className="muted small">
-            {a.role === "dev"
-              ? "Place this agent on as many islands as you like: each one gets its own copy, at the desk you choose."
-              : "This reviewer adds its rules to the review of every island you tick."}
+            {simple
+              ? "Tick the products this agent works on."
+              : a.role === "dev"
+                ? "Place this agent on as many islands as you like: each one gets its own copy, at the desk you choose."
+                : "This reviewer adds its rules to the review of every island you tick."}
           </p>
-          {!repos.length && <p className="muted">No island connected yet.</p>}
+          {!repos.length && <p className="muted">No {word("repo", simple)} connected yet.</p>}
           <ul className="placements">
             {repos.map((r) => {
               const here = placed(r.fullName);
-              if (a.role !== "dev") {
+              if (a.role !== "dev" || simple) {
                 return (
                   <li key={r.fullName}>
                     <label className="check">
@@ -323,7 +333,7 @@ function AgentEditor({
                         onChange={(e) =>
                           set({
                             placements: e.target.checked
-                              ? [...a.placements, { repo: r.fullName, scope: a.role }]
+                              ? [...a.placements, { repo: r.fullName, scope: a.role === "dev" ? (r.scopes.find((x) => x !== "general") ?? slug(a.name)) : a.role }]
                               : a.placements.filter((p) => p.repo !== r.fullName),
                           })
                         }
@@ -374,9 +384,11 @@ function AgentEditor({
           <button className="ghost danger" onClick={onRemove}>
             Remove from the team
           </button>
-          <button className="ghost" onClick={onDuplicate} title="A copy you can train differently">
-            Duplicate
-          </button>
+          {!simple && (
+            <button className="ghost" onClick={onDuplicate} title="A copy you can train differently">
+              Duplicate
+            </button>
+          )}
           <button className="primary" onClick={onClose}>
             Done
           </button>

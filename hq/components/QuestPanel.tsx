@@ -1,22 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { STAGE_LABELS, type Quest, type ReviewResult, type Stage } from "@/lib/types";
+import type { Quest, ReviewResult, Stage } from "@/lib/types";
 import { useHQ } from "./HQ";
 import { Sprite } from "./arcade/Sprite";
 import { agentName, ago, repoName } from "./util";
-
-export const SIMPLE_STAGE: Record<Stage, string> = {
-  backlog: "Backlog",
-  spec_en_cours: "Being specified",
-  spec_prete: "Specified",
-  a_developper: "About to start",
-  en_developpement: "Being built",
-  pr_ouverte: "Being reviewed",
-  revue_humaine: "Waiting for your OK",
-  done: "Live",
-  bloque: "Needs your answer",
-};
+import { stageText } from "./words";
 
 const JOURNEY: Stage[] = ["backlog", "a_developper", "en_developpement", "pr_ouverte", "revue_humaine", "done"];
 
@@ -27,14 +16,14 @@ export function QuestPanel({ quest: q, onClose }: { quest: Quest; onClose: () =>
   const [scope, setScope] = useState(q.scope ?? scopes[0] ?? "general");
   const agents = world.agents.filter((a) => a.questId === q.id);
   const reached = JOURNEY.indexOf(q.stage === "bloque" ? "en_developpement" : q.stage);
-  const canLaunch = ["backlog", "spec_prete", "spec_en_cours", "a_developper"].includes(q.stage) && agents.every((a) => a.role !== "dev" || a.activity === "failed");
+  const canLaunch = ["backlog", "a_developper"].includes(q.stage) && agents.every((a) => a.role !== "dev" || a.activity === "failed");
 
   return (
     <aside className="panel" role="dialog" aria-label={q.title}>
       <header>
         <span className="muted">
           {repoName(q.repo)}
-          <span className="dev-only"> #{q.number}</span> · {simple ? SIMPLE_STAGE[q.stage] : STAGE_LABELS[q.stage]}
+          <span className="dev-only"> #{q.number}</span> · {stageText(q.stage, simple)}
         </span>
         <button className="ghost" onClick={onClose} aria-label="Close">
           ✕
@@ -45,7 +34,7 @@ export function QuestPanel({ quest: q, onClose }: { quest: Quest; onClose: () =>
       <ol className="journey">
         {JOURNEY.map((s, i) => (
           <li key={s} className={i < reached ? "past" : i === reached ? (q.stage === "bloque" ? "now blocked" : "now") : ""}>
-            {simple ? SIMPLE_STAGE[s] : STAGE_LABELS[s]}
+            {stageText(s, simple)}
           </li>
         ))}
       </ol>
