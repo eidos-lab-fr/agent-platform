@@ -1,45 +1,16 @@
-name: Synchro du board (réutilisable)
+name: Synchro du board (retiré)
 
-# Appelé par .github/workflows/agent-board.yml de chaque repo, sur les événements issues: opened et labeled.
+# Le board GitHub Projects n'est plus utilisé : Agent HQ déduit le statut des labels et des PR.
+# Ce workflow ne fait plus rien. Il reste seulement pour que les repos qui ont encore
+# .github/workflows/agent-board.yml n'échouent pas. Supprime ce fichier quand plus aucun repo ne l'appelle
+# (relancer « Onboarder un repo » retire agent-board.yml).
 
 on:
   workflow_call:
 
 jobs:
-  backlog:
-    if: github.event.action == 'opened'
+  retire:
+    if: false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: eidos-lab-fr/agent-platform
-          token: ${{ secrets.PROJECT_TOKEN }}
-          path: .agent-platform
-
-      - name: Nouveau ticket → Backlog
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
-          PROJECT_ID: ${{ vars.PROJECT_ID }}
-          STATUS_FIELD_ID: ${{ vars.STATUS_FIELD_ID }}
-        run: bash .agent-platform/scripts/set-status.sh "${{ github.event.issue.html_url }}" "${{ vars.OPT_BACKLOG }}"
-
-  bloque:
-    if: github.event.action == 'labeled' && github.event.label.name == 'needs-human'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: eidos-lab-fr/agent-platform
-          token: ${{ secrets.PROJECT_TOKEN }}
-          path: .agent-platform
-
-      - name: Board → Bloqué
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
-          ORG: ${{ vars.ORG || github.repository_owner }}
-          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
-          PROJECT_ID: ${{ vars.PROJECT_ID }}
-          STATUS_FIELD_ID: ${{ vars.STATUS_FIELD_ID }}
-        run: bash .agent-platform/scripts/set-status.sh "${{ github.event.issue.html_url }}" "${{ vars.OPT_BLOQUE }}"
+      - run: "true"

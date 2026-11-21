@@ -18,41 +18,13 @@ jobs:
       startsWith(github.head_ref, 'agent/') &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    outputs:
-      issue_url: ${{ steps.issue.outputs.url }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: eidos-lab-fr/agent-platform
-          token: ${{ secrets.PROJECT_TOKEN }}
-          path: .agent-platform
-
       - name: Retirer les verdicts précédents
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh api -X DELETE "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/review:changes" || true
           gh api -X DELETE "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels/review:ok" || true
-
-      - name: Trouver le ticket lié
-        id: issue
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          URL=$(gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} \
-            --json closingIssuesReferences -q '.closingIssuesReferences[0].url // ""')
-          echo "url=$URL" >> "$GITHUB_OUTPUT"
-          echo "Ticket lié : ${URL:-aucun}"
-
-      - name: Board → PR ouverte
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
-          ORG: ${{ vars.ORG || github.repository_owner }}
-          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
-          PROJECT_ID: ${{ vars.PROJECT_ID }}
-          STATUS_FIELD_ID: ${{ vars.STATUS_FIELD_ID }}
-        run: bash .agent-platform/scripts/set-status.sh "${{ steps.issue.outputs.url }}" "${{ vars.OPT_PR_OUVERTE }}"
 
   review:
     needs: reset
@@ -96,35 +68,15 @@ jobs:
     needs: [reset, review]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: eidos-lab-fr/agent-platform
-          token: ${{ secrets.PROJECT_TOKEN }}
-          path: .agent-platform
-
       - name: Trancher
-        id: verdict
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR=${{ github.event.pull_request.number }}
           LABELS=$(gh api "repos/${{ github.repository }}/issues/$PR/labels" -q '.[].name')
           if echo "$LABELS" | grep -qx 'review:changes'; then
-            echo "result=changes" >> "$GITHUB_OUTPUT"
             echo "Au moins une review bloquante."
           else
             gh api -X POST "repos/${{ github.repository }}/issues/$PR/labels" -f "labels[]=review:ok" --silent
-            echo "result=ok" >> "$GITHUB_OUTPUT"
             echo "Aucune review bloquante."
           fi
-
-      - name: Board → Revue humaine
-        if: steps.verdict.outputs.result == 'ok'
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
-          ORG: ${{ vars.ORG || github.repository_owner }}
-          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
-          PROJECT_ID: ${{ vars.PROJECT_ID }}
-          STATUS_FIELD_ID: ${{ vars.STATUS_FIELD_ID }}
-        run: bash .agent-platform/scripts/set-status.sh "${{ needs.reset.outputs.issue_url }}" "${{ vars.OPT_REVUE_HUMAINE }}"

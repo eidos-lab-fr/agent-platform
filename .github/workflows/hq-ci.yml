@@ -1,0 +1,37 @@
+name: Agent HQ (CI)
+
+# Typecheck, tests and build of the hq/ web app, on every pull request that touches it.
+
+on:
+  pull_request:
+    paths:
+      - "hq/**"
+      - ".github/workflows/hq-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "hq/**"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: hq
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: hq/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          HQ_AUTH: demo

@@ -21,8 +21,8 @@ Si des briefs ou une doc d'architecture définissent déjà qui possède quels f
 
 ## 3. Workflows
 
-- Copie les 4 fichiers de `.agent-platform/templates/callers/` dans `.github/workflows/` tels quels.
-- Si le repo contient les anciens workflows d'agents copiés à la main (`dev-agent.yml`, `pr-review.yml`, `claude.yml`, `board-sync.yml`, `board-setup.yml`) et `.github/scripts/set-status.sh`, supprime-les avec `git rm` : les appelants les remplacent. Supprime aussi `.github/agents/dev-general.md` s'il existe (la plateforme fournit le sien).
+- Copie les 3 fichiers de `.agent-platform/templates/callers/` dans `.github/workflows/` tels quels.
+- Si le repo contient les anciens workflows d'agents copiés à la main (`dev-agent.yml`, `pr-review.yml`, `claude.yml`, `board-sync.yml`, `board-setup.yml`), l'ancien appelant `agent-board.yml` (le board GitHub Projects n'est plus utilisé) et `.github/scripts/set-status.sh`, supprime-les avec `git rm` : les appelants les remplacent. Supprime aussi `.github/agents/dev-general.md` s'il existe (la plateforme fournit le sien).
 - S'il n'existe aucune CI qui lance lint et tests sur les PR, crée `.github/workflows/ci.yml` adaptée à la stack, avec uniquement des commandes qui marchent sans secret. N'utilise que des actions officielles (`actions/checkout`, `actions/setup-node`, `actions/setup-python`…). Nomme le job `check`.
 
 ## 4. Scopes et agents de dev

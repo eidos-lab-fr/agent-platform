@@ -4,7 +4,7 @@ Ces règles valent pour tous les repos. Le `CLAUDE.md` du repo, puis `.github/ag
 
 ## Méthode
 
-1. Lis le ticket avec `gh issue view <numéro>`, puis la spec qu'il pointe.
+1. Lis le ticket avec `gh issue view <numéro> --comments` (les réponses de l'humain sont dans les commentaires), puis la spec qu'il pointe.
 2. Lis le fichier de ton scope : il fixe ton **périmètre**, c'est-à-dire les seuls fichiers que tu peux modifier.
 3. Crée la branche `agent/<numéro>-<slug court>`.
 4. Installe les dépendances avec la commande indiquée dans `CLAUDE.md` (à défaut : `npm ci` s'il y a un `package-lock.json`).
