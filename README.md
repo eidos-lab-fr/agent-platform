@@ -25,6 +25,7 @@ A human always merges. Agents cannot merge, cannot push to `main` and cannot for
 | `agents/` | Shared rules: dev agent, scope-less dev agent, three reviewers, onboarding agent |
 | `templates/` | Files dropped into each repository: caller workflows, issue template |
 | `scripts/set-status.sh` | Moves a card on the board |
+| `hq/` | Agent HQ, a gamified web app to create tasks, hand them to agents and watch them work, without the GitHub UI (see [hq/README.md](hq/README.md)) |
 
 Each repository keeps what is specific to it in `.github/agents/`: one `dev-<scope>.md` per scope, and optionally `_commun-dev.md` and `review-<reviewer>.md`, which add to the shared rules.
 
