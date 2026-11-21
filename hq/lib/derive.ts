@@ -1,5 +1,5 @@
-// Déduit quêtes, agents et activité à partir des données brutes de l'API REST GitHub.
-// Fonctions pures : testées dans tests/derive.test.ts.
+// Derives quests, agents and activity from raw GitHub REST API data.
+// Pure functions, tested in tests/derive.test.ts.
 
 import type {
   ActivityEvent,
@@ -67,13 +67,13 @@ export interface RawRepoData {
   issues: RawIssue[];
   pulls: RawPull[];
   runs: RawRun[];
-  /** Jobs des runs actifs, indexés par id de run. */
+  /** Jobs of active runs, keyed by run id. */
   jobs: Record<number, RawJob[]>;
-  /** Dernier commentaire des tickets bloqués, indexé par numéro. */
+  /** Last comment on blocked issues, keyed by issue number. */
   lastComments: Record<number, string>;
 }
 
-// Noms des workflows posés par agent-platform dans chaque repo (templates/callers).
+// Workflow names installed by agent-platform in each repo (templates/callers).
 export const WORKFLOW_DEV = "Agent dev";
 export const WORKFLOW_REVIEW = "Agents de review";
 export const WORKFLOW_CLAUDE = "Claude (@claude)";
@@ -90,7 +90,7 @@ export function scopeOf(labels: string[]): string | null {
   return l ? l.slice("scope:".length) : null;
 }
 
-/** Numéro du ticket lié à une PR : branche agent/<n>-slug, sinon « Closes #n » dans le corps. */
+/** Issue linked to a PR: branch agent/<n>-slug, else "Closes #n" in the body. */
 export function issueNumberOfPull(pull: Pick<RawPull, "head" | "body">): number | null {
   const m = /^agent\/(\d+)(?:-|$)/.exec(pull.head.ref);
   if (m) return Number(m[1]);
@@ -118,7 +118,7 @@ export function toQuestPR(pull: RawPull): QuestPR {
   };
 }
 
-/** Colonne d'une quête, d'après ses labels, sa PR et les runs en cours. */
+/** Board column of a quest, from its labels, its PR and running workflows. */
 export function stageOf(input: {
   state: "open" | "closed";
   labels: string[];
@@ -136,7 +136,7 @@ export function stageOf(input: {
   return "backlog";
 }
 
-/** Retrouve la quête visée par un run : branche agent/<n> ou titre du ticket (display_title). */
+/** Finds the quest a run works on: branch agent/<n>, or issue title (display_title). */
 export function questNumberOfRun(run: RawRun, issues: RawIssue[]): number | null {
   const m = /^agent\/(\d+)(?:-|$)/.exec(run.head_branch ?? "");
   if (m) return Number(m[1]);
@@ -146,7 +146,7 @@ export function questNumberOfRun(run: RawRun, issues: RawIssue[]): number | null
 
 export function deriveQuests(data: RawRepoData): Quest[] {
   const pullsByIssue = new Map<number, RawPull>();
-  // Les PR arrivent de la plus récente à la plus ancienne : on garde la plus récente.
+  // PRs come newest first: keep the newest one.
   for (const p of data.pulls) {
     const n = issueNumberOfPull(p);
     if (n !== null && !pullsByIssue.has(n)) pullsByIssue.set(n, p);
@@ -186,10 +186,10 @@ export function deriveQuests(data: RawRepoData): Quest[] {
 }
 
 function devActivity(run: RawRun, jobs: RawJob[] | undefined): { activity: AgentActivity; step: string | null } {
-  if (run.status !== "in_progress") return { activity: "queued", step: "En file d'attente" };
+  if (run.status !== "in_progress") return { activity: "queued", step: "Queued" };
   const step = jobs?.flatMap((j) => j.steps ?? []).find((s) => s.status === "in_progress");
-  if (!step) return { activity: "preparing", step: "Démarrage" };
-  if (/claude-code-action/i.test(step.name)) return { activity: "working", step: "Claude au travail" };
+  if (!step) return { activity: "preparing", step: "Starting" };
+  if (/claude-code-action/i.test(step.name)) return { activity: "working", step: "Claude at work" };
   return { activity: "preparing", step: step.name.replace(/^Run /, "") };
 }
 
@@ -215,7 +215,7 @@ export function deriveAgents(data: RawRepoData, quests: Quest[]): Agent[] {
   const devs = new Map<string, Agent[]>();
   for (const s of scopes) devs.set(s, [base("dev", s)]);
 
-  // Agents dev au travail.
+  // Dev agents at work.
   for (const run of data.runs.filter((r) => r.name === WORKFLOW_DEV && isActiveRun(r))) {
     const n = questNumberOfRun(run, data.issues);
     const quest = n !== null ? byNumber.get(n) : undefined;
@@ -238,7 +238,7 @@ export function deriveAgents(data: RawRepoData, quests: Quest[]): Agent[] {
     });
   }
 
-  // Agents bloqués : la main levée reste sur le bureau du scope.
+  // Blocked agents: the raised hand stays at the scope's desk.
   for (const q of quests.filter((x) => x.stage === "bloque")) {
     let scope = q.scope ?? "general";
     if (!devs.has(scope)) scope = "general";
@@ -250,14 +250,14 @@ export function deriveAgents(data: RawRepoData, quests: Quest[]): Agent[] {
     }
     Object.assign(agent, {
       activity: "blocked",
-      step: "Attend ta réponse",
+      step: "Waiting for your answer",
       questId: q.id,
       questTitle: q.title,
       startedAt: q.updatedAt,
     });
   }
 
-  // Agent dev tombé en échec dans les 2 dernières heures, sans relance depuis.
+  // Dev agent that failed in the last 2 hours and has not been restarted.
   const twoHours = 2 * 3600 * 1000;
   const latestDevRunByQuest = new Map<number, RawRun>();
   for (const run of data.runs.filter((r) => r.name === WORKFLOW_DEV && r.conclusion !== "skipped")) {
@@ -275,7 +275,7 @@ export function deriveAgents(data: RawRepoData, quests: Quest[]): Agent[] {
     if (!agent) continue;
     Object.assign(agent, {
       activity: "failed",
-      step: run.conclusion === "timed_out" ? "À bout de temps" : "En échec",
+      step: run.conclusion === "timed_out" ? "Timed out" : "Failed",
       questId: q.id,
       questTitle: q.title,
       startedAt: run.updated_at,
@@ -285,7 +285,7 @@ export function deriveAgents(data: RawRepoData, quests: Quest[]): Agent[] {
 
   for (const team of devs.values()) agents.push(...team);
 
-  // Relecteurs.
+  // Reviewers.
   const reviewers = new Map(REVIEWERS.map((r) => [r, base(r, null)]));
   for (const run of data.runs.filter((r) => r.name === WORKFLOW_REVIEW && isActiveRun(r))) {
     const n = questNumberOfRun(run, data.issues);
@@ -296,10 +296,10 @@ export function deriveAgents(data: RawRepoData, quests: Quest[]): Agent[] {
       if (agent.activity !== "idle") continue;
       const job = jobs.find((j) => new RegExp(`\\(${role}\\)`).test(j.name));
       let activity: AgentActivity = "queued";
-      let step = "Attend la PR";
+      let step = "Waiting for the PR";
       if (job?.status === "in_progress") {
         activity = "reviewing";
-        step = "Relit la PR";
+        step = "Reviewing the PR";
       } else if (job?.status === "completed") {
         continue;
       }
@@ -315,7 +315,7 @@ export function deriveAgents(data: RawRepoData, quests: Quest[]): Agent[] {
   }
   agents.push(...reviewers.values());
 
-  // Agent @claude.
+  // @claude agent.
   const claude = base("claude", null);
   const claudeRun = data.runs.find((r) => r.name === WORKFLOW_CLAUDE && isActiveRun(r));
   if (claudeRun) {
@@ -323,7 +323,7 @@ export function deriveAgents(data: RawRepoData, quests: Quest[]): Agent[] {
     const quest = n !== null ? byNumber.get(n) : undefined;
     Object.assign(claude, {
       activity: claudeRun.status === "in_progress" ? "working" : "queued",
-      step: "Corrige à ta demande",
+      step: "Fixing on request",
       questId: quest?.id ?? null,
       questTitle: quest?.title ?? claudeRun.display_title,
       startedAt: claudeRun.run_started_at ?? claudeRun.created_at,
@@ -338,28 +338,28 @@ export function deriveActivity(data: RawRepoData, quests: Quest[]): ActivityEven
   const out: ActivityEvent[] = [];
   const name = data.repo.split("/")[1] ?? data.repo;
   for (const q of quests) {
-    out.push({ id: `${q.id}:new`, at: q.createdAt, repo: data.repo, kind: "quest", text: `Nouvelle quête sur ${name} : ${q.title}`, url: q.url });
+    out.push({ id: `${q.id}:new`, at: q.createdAt, repo: data.repo, kind: "quest", text: `New quest on ${name}: ${q.title}`, url: q.url });
     if (q.pr) {
-      out.push({ id: `${q.id}:pr`, at: q.pr.createdAt, repo: data.repo, kind: "pr", text: `PR #${q.pr.number} déposée pour « ${q.title} »`, url: q.pr.url });
+      out.push({ id: `${q.id}:pr`, at: q.pr.createdAt, repo: data.repo, kind: "pr", text: `PR #${q.pr.number} delivered for "${q.title}"`, url: q.pr.url });
       if (q.pr.mergedAt) {
-        out.push({ id: `${q.id}:merged`, at: q.pr.mergedAt, repo: data.repo, kind: "merged", text: `Quête livrée : ${q.title}`, url: q.pr.url });
+        out.push({ id: `${q.id}:merged`, at: q.pr.mergedAt, repo: data.repo, kind: "merged", text: `Quest completed: ${q.title}`, url: q.pr.url });
       }
     }
     if (q.stage === "bloque") {
-      out.push({ id: `${q.id}:blocked`, at: q.updatedAt, repo: data.repo, kind: "blocked", text: `Un agent lève la main sur « ${q.title} »`, url: q.url });
+      out.push({ id: `${q.id}:blocked`, at: q.updatedAt, repo: data.repo, kind: "blocked", text: `An agent raised its hand on "${q.title}"`, url: q.url });
     }
   }
   for (const run of data.runs) {
     const at = run.run_started_at ?? run.created_at;
     if (run.name === WORKFLOW_DEV && run.conclusion !== "skipped") {
-      out.push({ id: `run:${run.id}`, at, repo: data.repo, kind: "launch", text: `Un agent dev part sur « ${run.display_title} »`, url: run.html_url });
+      out.push({ id: `run:${run.id}`, at, repo: data.repo, kind: "launch", text: `A dev agent set off on "${run.display_title}"`, url: run.html_url });
       if (run.status === "completed" && run.conclusion && run.conclusion !== "success" && run.conclusion !== "skipped") {
-        out.push({ id: `run:${run.id}:ko`, at: run.updated_at, repo: data.repo, kind: "failed", text: `L'agent dev a échoué sur « ${run.display_title} »`, url: run.html_url });
+        out.push({ id: `run:${run.id}:ko`, at: run.updated_at, repo: data.repo, kind: "failed", text: `The dev agent failed on "${run.display_title}"`, url: run.html_url });
       }
     } else if (run.name === WORKFLOW_CLAUDE && run.conclusion !== "skipped") {
-      out.push({ id: `run:${run.id}`, at, repo: data.repo, kind: "claude", text: `@claude appelé sur « ${run.display_title} »`, url: run.html_url });
+      out.push({ id: `run:${run.id}`, at, repo: data.repo, kind: "claude", text: `@claude called on "${run.display_title}"`, url: run.html_url });
     } else if (run.name === WORKFLOW_REVIEW && run.conclusion !== "skipped") {
-      out.push({ id: `run:${run.id}`, at, repo: data.repo, kind: "review", text: `Les relecteurs examinent « ${run.display_title} »`, url: run.html_url });
+      out.push({ id: `run:${run.id}`, at, repo: data.repo, kind: "review", text: `Reviewers are checking "${run.display_title}"`, url: run.html_url });
     }
   }
   return out;

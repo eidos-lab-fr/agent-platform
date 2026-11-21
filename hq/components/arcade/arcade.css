@@ -1,4 +1,4 @@
-/* Agent Arcade : styles autonomes. Les couleurs se surchargent avec les variables --arcade-*. */
+/* Agent Arcade: self-contained styles. Override colors with the --arcade-* variables. */
 .arcade {
   --a-line: var(--arcade-line, #463f74);
   --a-panel: var(--arcade-panel, #2a2549);
@@ -272,7 +272,7 @@
   border-color: var(--a-gold);
 }
 
-/* Animations de la mascotte */
+/* Mascot animations */
 .arcade-sprite {
   overflow: visible;
   transition: width 0.3s, height 0.3s;

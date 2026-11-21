@@ -1,5 +1,5 @@
-// XP, niveaux, séries et succès. Les points récompensent les quêtes livrées, jamais le nombre
-// d'agents lancés : chaque lancement coûte des crédits Anthropic.
+// XP, levels, streaks and achievements. Points reward completed quests, never the number
+// of agents launched: every launch costs Anthropic credits.
 
 import type { Achievement, Progress, Quest, Repo } from "./types";
 
@@ -7,7 +7,7 @@ export const XP_MERGE = 100;
 export const XP_FIRST_TRY = 50;
 export const XP_QUEST = 10;
 
-/** XP cumulée nécessaire pour atteindre un niveau (niveau 1 = 0 XP). */
+/** Total XP needed to reach a level (level 1 = 0 XP). */
 export function xpForLevel(level: number): number {
   return 75 * (level - 1) * level;
 }
@@ -18,7 +18,7 @@ export function levelOf(xp: number): number {
   return level;
 }
 
-/** Jour calendaire à Paris, au format AAAA-MM-JJ. */
+/** Calendar day in Paris, as YYYY-MM-DD. */
 export function parisDay(iso: string | number | Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date(iso));
 }
@@ -29,7 +29,7 @@ function previousDay(day: string): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Jours consécutifs avec au moins un merge, en finissant aujourd'hui ou hier. */
+/** Consecutive days with at least one merge, ending today or yesterday. */
 export function streakOf(mergeDates: string[], now: Date = new Date()): number {
   const days = new Set(mergeDates.map(parisDay));
   let day = parisDay(now);
@@ -78,13 +78,13 @@ export function computeProgress(quests: Quest[], repos: Repo[], now: Date = new 
     firstTry: firstTry.length,
     streakDays,
     achievements: [
-      a("premier-colis", "Premier colis", "Merger une première PR d'agent", merged.length, 1),
-      a("sans-faute", "Sans faute", "5 PR mergées avec review:ok du premier coup", firstTry.length, 5),
-      a("spec-de-cristal", "Spec de cristal", "10 quêtes livrées sans que l'agent lève la main", blockedNever.length, 10),
-      a("dizaine", "Dizaine", "10 quêtes livrées", merged.length, 10),
-      a("archipel", "Archipel", "3 repos branchés sur la plateforme", repos.length, 3),
-      a("nuit-blanche", "Nuit blanche", "Une PR déposée par un agent entre minuit et 6 h", nightOwl.length, 1),
-      a("serie", "En série", "Merger au moins une PR 5 jours d'affilée", streakDays, 5),
+      a("first-parcel", "First parcel", "Merge your first agent PR", merged.length, 1),
+      a("flawless", "Flawless", "Merge 5 PRs that got review:ok on the first try", firstTry.length, 5),
+      a("crystal-spec", "Crystal spec", "Complete 10 quests without an agent raising its hand", blockedNever.length, 10),
+      a("ten", "Into double digits", "Complete 10 quests", merged.length, 10),
+      a("archipelago", "Archipelago", "Connect 3 repos to the platform", repos.length, 3),
+      a("night-owl", "Night owl", "Get an agent PR between midnight and 6 AM", nightOwl.length, 1),
+      a("streak", "On a roll", "Merge at least one PR 5 days in a row", streakDays, 5),
     ],
   };
 }

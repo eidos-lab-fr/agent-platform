@@ -6,13 +6,13 @@ import { assembleWorld } from "@/lib/world";
 describe("worldToArcade", () => {
   const world = assembleWorld(demoRawData(), "demo", "demo");
 
-  it("crée une pièce par repo avec ses cinq zones", () => {
+  it("creates one room per repo with five zones", () => {
     const snap = worldToArcade(world);
     expect(snap.rooms.map((r) => r.id)).toEqual(world.repos.map((r) => r.fullName));
     for (const room of snap.rooms) expect(room.zones.map((z) => z.slot)).toEqual(["main", "side", "corner", "bottom", "bottomCorner"]);
   });
 
-  it("place chaque agent du repo une seule fois", () => {
+  it("places each agent of the repo exactly once", () => {
     const snap = worldToArcade(world);
     const ids = snap.rooms.flatMap((r) =>
       r.zones.flatMap((z) => (z.kind === "desks" ? z.desks.flatMap((d) => d.agents) : z.kind === "agents" ? z.agents : [])).map((a) => a.id),
@@ -21,7 +21,7 @@ describe("worldToArcade", () => {
     expect(ids.length).toBe(world.agents.length);
   });
 
-  it("filtre sur un repo", () => {
+  it("filters on one repo", () => {
     const repo = world.repos[0].fullName;
     expect(worldToArcade(world, repo).rooms).toHaveLength(1);
   });

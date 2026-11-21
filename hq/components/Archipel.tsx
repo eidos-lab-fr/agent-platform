@@ -34,15 +34,15 @@ export function Archipel() {
                     <article key={s} className="agent-card">
                       <div className="agent-card-top">
                         <Sprite role="dev" activity={mine.length ? "working" : "idle"} size={56} />
-                        <span className="card-level">Niv. {level}</span>
+                        <span className="card-level">Lvl {level}</span>
                       </div>
                       <h3>Dev {s}</h3>
                       <dl>
-                        <dt>Quêtes livrées</dt>
+                        <dt>Quests completed</dt>
                         <dd>{mine.length}</dd>
-                        <dt>Du premier coup</dt>
+                        <dt>First try</dt>
                         <dd>{mine.length ? `${Math.round((firstTry / mine.length) * 100)} %` : "—"}</dd>
-                        <dt>Ticket → PR</dt>
+                        <dt>Issue → PR</dt>
                         <dd>{avg ? `${Math.round(avg / 3_600_000)} h` : "—"}</dd>
                       </dl>
                     </article>
@@ -53,10 +53,10 @@ export function Archipel() {
           );
         })}
         <section className="island fog">
-          <h2>🌫️ Île inconnue</h2>
+          <h2>🌫️ Unknown island</h2>
           <p className="muted">
-            Brancher un nouveau repo lance le workflow « Onboarder un repo » d'agent-platform : labels, secrets, board, puis une PR
-            de configuration à merger.
+            Connecting a new repo runs agent-platform's "Onboarder un repo" workflow: labels, secrets, board, then a setup PR
+            for you to merge.
           </p>
           <form
             onSubmit={async (e) => {
@@ -64,9 +64,9 @@ export function Archipel() {
               if ((await act({ type: "onboard", repo: name.trim() })).ok) setName("");
             }}
           >
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="nom-du-repo (sans l'org)" />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="repo-name (without the org)" />
             <button className="primary" disabled={busy || !name.trim()}>
-              Explorer l'île
+              Explore the island
             </button>
           </form>
         </section>

@@ -8,7 +8,7 @@ export async function GET() {
   const url = new URL("https://github.com/login/oauth/authorize");
   url.searchParams.set("client_id", config.clientId);
   url.searchParams.set("redirect_uri", `${config.appUrl}/api/auth/callback`);
-  // repo : lire et étiqueter les tickets, merger. workflow : lancer l'onboarding d'un repo.
+  // repo: read and label issues, merge. workflow: start a repo onboarding.
   url.searchParams.set("scope", "repo workflow");
   url.searchParams.set("state", state);
   const res = NextResponse.redirect(url.toString());

@@ -1,10 +1,10 @@
-// La mascotte d'Agent Arcade : un petit personnage original en pixel art, décliné par rôle.
+// The Agent Arcade mascot: an original little pixel-art character, styled per role.
 
 import "./arcade.css";
 import { styleOf } from "./palette";
 import type { ArcadeActivity, ArcadeRoleStyle } from "./types";
 
-// 12 × 13 pixels. B corps, S ombre, W blanc des yeux, P pupille, M bouche, L jambes, A antenne.
+// 12 × 13 pixels. B body, S shade, W eye white, P pupil, M mouth, L legs, A antenna.
 const BODY = [
   ".....AA.....",
   "......A.....",
@@ -22,8 +22,8 @@ const BODY = [
 ];
 
 function eyes(activity: ArcadeActivity): string[] | null {
-  if (activity === "idle") return ["..BBBBBBBB..", "..BPPBBPPB.."]; // yeux fermés
-  if (activity === "failed") return ["..BPBBBPBB..", "..BBPBBBPB.."]; // yeux en croix
+  if (activity === "idle") return ["..BBBBBBBB..", "..BPPBBPPB.."]; // eyes closed
+  if (activity === "failed") return ["..BPBBBPBB..", "..BBPBBBPB.."]; // crossed-out eyes
   return null;
 }
 
@@ -71,7 +71,7 @@ export function Sprite({
       aria-label={`${c.label} : ${activity}`}
     >
       <g className="sprite-body">{px}</g>
-      {/* Mains : levée quand l'agent attend une réponse, sinon de chaque côté. */}
+      {/* Hands: one raised when the agent waits for an answer, otherwise at its sides. */}
       <g className="sprite-hands" fill={c.shade}>
         {activity === "blocked" ? <rect x={10} y={2} width={1} height={5} /> : <rect className="hand-r" x={10} y={8} width={1} height={2} />}
         <rect className="hand-l" x={1} y={8} width={1} height={2} />

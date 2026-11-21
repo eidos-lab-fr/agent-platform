@@ -1,5 +1,5 @@
-// Monde simulé pour le mode démo (aucun accès GitHub). Il produit les mêmes données brutes que
-// l'API GitHub, que derive.ts transforme ensuite : la démo exerce donc le vrai moteur d'état.
+// Simulated world for demo mode (no GitHub access). It produces the same raw data as
+// the GitHub API, which derive.ts then transforms: the demo runs the real state engine.
 
 import type { RawIssue, RawJob, RawPull, RawRepoData, RawRun } from "./derive";
 import { WORKFLOW_DEV, WORKFLOW_REVIEW } from "./derive";
@@ -23,18 +23,18 @@ const REPOS: DemoRepo[] = [
       { offset: 95, scope: "api", blockFrom: 70, blockTo: 115 },
     ],
     titles: [
-      "Exporter une note en PDF",
-      "Recherche plein texte dans les notes",
-      "Partager une note par lien",
-      "Tags colorés sur les notes",
-      "Limiter les appels à l'API d'IA",
-      "Historique des versions d'une note",
-      "Mode hors ligne",
-      "Raccourcis clavier",
+      "Export a note as PDF",
+      "Full-text search in notes",
+      "Share a note by link",
+      "Colored tags on notes",
+      "Rate-limit calls to the AI API",
+      "Version history for a note",
+      "Offline mode",
+      "Keyboard shortcuts",
     ],
     backlog: [
-      { title: "Importer des notes depuis Markdown", scope: "api" },
-      { title: "Thème sombre automatique", scope: "front" },
+      { title: "Import notes from Markdown", scope: "api" },
+      { title: "Automatic dark theme", scope: "front" },
     ],
   },
   {
@@ -42,23 +42,23 @@ const REPOS: DemoRepo[] = [
     scopes: ["site"],
     lanes: [{ offset: 160, scope: "site" }],
     titles: [
-      "Page projet pour Agent HQ",
-      "Formulaire de contact",
-      "Améliorer le score Lighthouse",
-      "Galerie des projets filtrable",
+      "Project page for Agent HQ",
+      "Contact form",
+      "Improve the Lighthouse score",
+      "Filterable project gallery",
     ],
-    backlog: [{ title: "Version anglaise du site", scope: "site" }],
+    backlog: [{ title: "English version of the site", scope: "site" }],
   },
   {
     name: "prompt-compare",
     scopes: [],
     lanes: [{ offset: 60, scope: "general" }],
-    titles: ["Comparer trois prompts côte à côte", "Exporter les résultats en CSV", "Score de similarité"],
+    titles: ["Compare three prompts side by side", "Export results as CSV", "Similarity score"],
     backlog: [],
   },
 ];
 
-/** Durée d'un cycle complet d'une quête simulée, en secondes. */
+/** Length of a full simulated quest cycle, in seconds. */
 export const CYCLE = 260;
 
 interface Built {
@@ -72,7 +72,7 @@ interface Built {
 const iso = (ms: number) => new Date(ms).toISOString();
 const label = (name: string) => ({ name });
 
-/** Construit les données brutes d'une quête à `phase` secondes de son démarrage. */
+/** Builds a quest's raw data `phase` seconds after it started. */
 export function buildQuest(opts: {
   repo: string;
   number: number;
@@ -96,7 +96,7 @@ export function buildQuest(opts: {
   let closedAt: string | null = null;
 
   const blocked = opts.blockFrom !== undefined && phase >= opts.blockFrom && phase < (opts.blockTo ?? 0);
-  // Une quête bloquée prend du retard : le reste de son parcours est décalé.
+  // A blocked quest falls behind: the rest of its journey is shifted.
   const delay = opts.blockFrom !== undefined && phase >= (opts.blockTo ?? 0) ? (opts.blockTo ?? 0) - opts.blockFrom : 0;
   const p = blocked ? (opts.blockFrom ?? 0) : phase - delay;
 
@@ -105,7 +105,7 @@ export function buildQuest(opts: {
   if (blocked) {
     labels.push(label("needs-human"));
     comment =
-      "La spec ne dit pas si la limite s'applique par utilisateur ou par organisation. Laquelle dois-je appliquer ? Je m'arrête en attendant ta réponse.";
+      "The spec does not say whether the limit applies per user or per organization. Which one should I use? I am stopping until you answer.";
     runs.push(devRun(runId, title, "completed", "success", at(25), at(opts.blockFrom ?? 0)));
   } else if (p >= 20 && p < 110) {
     const status = p < 28 ? "queued" : "in_progress";
@@ -206,12 +206,12 @@ function demoBody(title: string): string {
     `specs/${title.length}-demo/spec.md`,
     "",
     "### Critères d'acceptation",
-    "- Le comportement décrit est couvert par un test",
-    "- Aucune régression sur les tests existants",
+    "- The described behavior is covered by a test",
+    "- No regression in existing tests",
   ].join("\n");
 }
 
-// Quêtes créées et lancées pendant la démo (mémoire du serveur, perdue au redémarrage).
+// Quests created and launched during the demo (server memory, lost on restart).
 interface DemoQuest {
   repo: string;
   number: number;
@@ -258,7 +258,7 @@ export function demoRawData(now: number = Date.now()): RawRepoData[] {
       if (b.comment) data.lastComments[b.issue.number] = b.comment;
     };
 
-    // Les voies tournent en boucle : chaque cycle est une nouvelle quête.
+    // Lanes loop forever: each cycle is a new quest.
     r.lanes.forEach((lane, li) => {
       const since = t - lane.offset;
       const k = Math.floor(since / CYCLE);
@@ -282,7 +282,7 @@ export function demoRawData(now: number = Date.now()): RawRepoData[] {
       }
     });
 
-    // Historique : des quêtes livrées sur les 12 derniers jours, pour l'XP et la série.
+    // History: quests completed over the last 12 days, for XP and the streak.
     const day = 86_400_000;
     for (let i = 0; i < 3 + ri; i++) {
       const start = now - (1 + i * 1.7) * day - ri * 3_600_000;

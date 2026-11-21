@@ -2,7 +2,7 @@
   "name": "agent-hq",
   "version": "0.1.0",
   "private": true,
-  "description": "Le QG gamifié des agents d'agent-platform",
+  "description": "The gamified headquarters for agent-platform agents",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

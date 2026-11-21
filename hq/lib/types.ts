@@ -1,6 +1,6 @@
-// Modèle du monde affiché par Agent HQ. Tout est déduit de GitHub (ou simulé en mode démo).
+// The world model shown by Agent HQ. Everything is derived from GitHub (or simulated in demo mode).
 
-/** Les colonnes du board d'agent-platform (board-setup.yml). */
+/** agent-platform board columns (board-setup.yml). */
 export const STAGES = [
   "backlog",
   "spec_en_cours",
@@ -16,14 +16,14 @@ export type Stage = (typeof STAGES)[number];
 
 export const STAGE_LABELS: Record<Stage, string> = {
   backlog: "Backlog",
-  spec_en_cours: "Spec en cours",
-  spec_prete: "Spec prête",
-  a_developper: "À développer",
-  en_developpement: "En développement",
-  pr_ouverte: "PR ouverte",
-  revue_humaine: "Revue humaine",
+  spec_en_cours: "Spec in progress",
+  spec_prete: "Spec ready",
+  a_developper: "Ready for dev",
+  en_developpement: "In development",
+  pr_ouverte: "PR open",
+  revue_humaine: "Human review",
   done: "Done",
-  bloque: "Bloqué",
+  bloque: "Blocked",
 };
 
 export type Verdict = "ok" | "changes" | null;
@@ -40,7 +40,7 @@ export interface QuestPR {
 }
 
 export interface Quest {
-  /** owner/repo#numéro */
+  /** owner/repo#number */
   id: string;
   repo: string;
   number: number;
@@ -55,13 +55,13 @@ export interface Quest {
   updatedAt: string;
   closedAt: string | null;
   pr: QuestPR | null;
-  /** Dernier commentaire d'agent quand le ticket est bloqué (needs-human). */
+  /** Last agent comment when the issue is blocked (needs-human). */
   question: string | null;
 }
 
 export type AgentRole = "dev" | "spec" | "securite" | "tests" | "claude";
 
-/** Geste affiché dans l'Atelier. */
+/** What the agent is shown doing in the Workshop. */
 export type AgentActivity =
   | "idle"
   | "queued"
@@ -75,12 +75,12 @@ export interface Agent {
   id: string;
   repo: string;
   role: AgentRole;
-  /** Scope pour un agent dev (front, api…), sinon null. */
+  /** Scope for a dev agent (front, api…), else null. */
   scope: string | null;
   activity: AgentActivity;
   questId: string | null;
   questTitle: string | null;
-  /** Nom réel de l'étape GitHub Actions en cours. */
+  /** Actual name of the running GitHub Actions step. */
   step: string | null;
   startedAt: string | null;
   runUrl: string | null;

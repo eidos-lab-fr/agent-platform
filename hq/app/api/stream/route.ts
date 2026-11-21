@@ -1,4 +1,4 @@
-// Flux en direct (Server-Sent Events) : le monde est renvoyé dès qu'il change.
+// Live stream (Server-Sent Events): the world is sent again whenever it changes.
 
 import { isDemo } from "@/lib/config";
 import { getSession } from "@/lib/session";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const session = await getSession();
-  if (!session && !isDemo()) return new Response("Non connecté", { status: 401 });
+  if (!session && !isDemo()) return new Response("Not signed in", { status: 401 });
   const interval = session ? 10_000 : 2_000;
   const encoder = new TextEncoder();
   let timer: ReturnType<typeof setTimeout> | undefined;

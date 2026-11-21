@@ -1,27 +1,27 @@
 # Agent Arcade
 
-La vue animée des agents au travail, conçue pour sortir d'Agent HQ et vivre seule (projet open source envisagé).
+The animated view of agents at work, built to leave Agent HQ and live on its own (an open source release is planned).
 
-Ce dossier ne dépend que de React : ni Next.js, ni GitHub, ni le reste d'Agent HQ. Pour l'extraire, copier le dossier tel quel.
+This folder depends only on React: no Next.js, no GitHub, nothing else from Agent HQ. To extract it, copy the folder as is.
 
-| Fichier | Rôle |
+| File | Role |
 | --- | --- |
-| `types.ts` | Le contrat : `ArcadeSnapshot` (pièces, zones, agents, objets) et `ArcadeSource` |
-| `Arcade.tsx` | Le composant `<Arcade>` et le hook `useArcadeSource` |
-| `Sprite.tsx` | La mascotte en pixel art, ses gestes et ses accessoires |
-| `palette.ts` | Couleurs et accessoire par rôle, surchargeables |
-| `arcade.css` | Styles autonomes, couleurs réglables par variables `--arcade-*` |
+| `types.ts` | The contract: `ArcadeSnapshot` (rooms, zones, agents, items) and `ArcadeSource` |
+| `Arcade.tsx` | The `<Arcade>` component and the `useArcadeSource` hook |
+| `Sprite.tsx` | The pixel-art mascot, its moves and accessories |
+| `palette.ts` | Colors and accessory per role, overridable |
+| `arcade.css` | Self-contained styles, colors adjustable through `--arcade-*` variables |
 
-## Utilisation
+## Usage
 
 ```tsx
 <Arcade snapshot={snapshot} onSelect={(id) => open(id)} />
-// ou, avec une source qui publie des instantanés :
-<Arcade source={{ subscribe: (push) => { const es = new EventSource("/flux"); es.onmessage = (e) => push(JSON.parse(e.data)); return () => es.close(); } }} />
+// or, with a source that publishes snapshots:
+<Arcade source={{ subscribe: (push) => { const es = new EventSource("/feed"); es.onmessage = (e) => push(JSON.parse(e.data)); return () => es.close(); } }} />
 ```
 
-Chaque pièce a cinq emplacements : `main` (grand espace, en général des bureaux), `side`, `corner`, `bottom`, `bottomCorner`. Une zone contient des bureaux (`desks`), des agents (`agents`) ou des objets cliquables (`tray`).
+Each room has five slots: `main` (the large area, usually desks), `side`, `corner`, `bottom`, `bottomCorner`. A zone holds desks (`desks`), agents (`agents`) or clickable items (`tray`).
 
-Gestes : `idle` (dort), `queued` (piétine), `preparing` (fait les cent pas), `working` (tape, étincelles), `reviewing` (inspecte), `blocked` (lève la main, bulle « ? »), `failed` (K.O.).
+Moves: `idle` (sleeps), `queued` (taps its foot), `preparing` (paces), `working` (types, with sparks), `reviewing` (inspects), `blocked` (raises its hand, with a "?" bubble), `failed` (knocked out).
 
-Dans Agent HQ, `lib/arcade-adapter.ts` traduit le monde déduit de GitHub en `ArcadeSnapshot`. Une autre plateforme d'agents n'a qu'à écrire son propre adaptateur.
+In Agent HQ, `lib/arcade-adapter.ts` turns the world derived from GitHub into an `ArcadeSnapshot`. Any other agent platform only needs its own adapter.

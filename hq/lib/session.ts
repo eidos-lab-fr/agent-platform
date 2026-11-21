@@ -1,4 +1,4 @@
-// Session chiffrée dans un cookie (AES-256-GCM). Le jeton GitHub ne quitte jamais le serveur en clair.
+// Session encrypted in a cookie (AES-256-GCM). The GitHub token never leaves the server in clear.
 
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";

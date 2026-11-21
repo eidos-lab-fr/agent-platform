@@ -104,7 +104,7 @@ code {
   font-size: 13px;
 }
 
-/* Barre du haut */
+/* Top bar */
 .topbar {
   position: sticky;
   top: 0;
@@ -263,7 +263,7 @@ a.big {
   padding: 12px 18px;
 }
 
-/* Cartes et dashboard */
+/* Cards and dashboard */
 .card {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -424,7 +424,7 @@ blockquote {
   margin-top: 8px;
 }
 
-/* Barres de filtres */
+/* Filter bars */
 .atelier-bar {
   display: flex;
   justify-content: space-between;
@@ -474,7 +474,7 @@ blockquote {
   }
 }
 
-/* Quêtes */
+/* Quests */
 .board {
   display: grid;
   grid-auto-flow: column;
@@ -526,7 +526,7 @@ blockquote {
   padding: 0 5px;
 }
 
-/* Fenêtres */
+/* Dialogs */
 .overlay {
   position: fixed;
   inset: 0;
@@ -696,7 +696,7 @@ pre.body {
   overflow: auto;
 }
 
-/* Archipel */
+/* Archipelago */
 .islands {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -765,7 +765,7 @@ pre.body {
   font-weight: 600;
 }
 
-/* Notifications */
+/* Toasts */
 .toast {
   position: fixed;
   bottom: 18px;

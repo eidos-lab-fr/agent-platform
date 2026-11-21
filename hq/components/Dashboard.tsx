@@ -4,7 +4,7 @@ import { useState } from "react";
 import { STAGE_LABELS } from "@/lib/types";
 import { useHQ } from "./HQ";
 import { Sprite } from "./arcade/Sprite";
-import { ago, repoName } from "./util";
+import { agentName, ago, repoName } from "./util";
 
 const KIND_ICON: Record<string, string> = {
   quest: "📜",
@@ -30,39 +30,39 @@ export function Dashboard({ onTab }: { onTab: (t: string) => void }) {
       <section className="tiles">
         <button className="tile" onClick={() => onTab("atelier")}>
           <span className="tile-value">{working.length}</span>
-          <span className="tile-label">agents au travail</span>
+          <span className="tile-label">agents at work</span>
         </button>
         <div className={`tile ${blocked.length ? "alert" : ""}`}>
           <span className="tile-value">{blocked.length}</span>
-          <span className="tile-label">mains levées</span>
+          <span className="tile-label">raised hands</span>
         </div>
         <div className={`tile ${toMerge.length ? "gold" : ""}`}>
           <span className="tile-value">{toMerge.length}</span>
-          <span className="tile-label">colis à merger</span>
+          <span className="tile-label">parcels to merge</span>
         </div>
         <div className="tile">
           <span className="tile-value">{p.merged}</span>
-          <span className="tile-label">quêtes livrées (60 j)</span>
+          <span className="tile-label">quests completed (60 days)</span>
         </div>
         <div className="tile">
           <span className="tile-value">{p.streakDays} 🔥</span>
-          <span className="tile-label">jours de série</span>
+          <span className="tile-label">day streak</span>
         </div>
       </section>
 
       <div className="columns">
         <div className="col">
           <section className="card">
-            <h2>Au travail en ce moment</h2>
-            {working.length === 0 && <p className="muted">Tout le monde dort. Confie une quête depuis l'onglet Quêtes.</p>}
+            <h2>At work right now</h2>
+            {working.length === 0 && <p className="muted">Everyone is asleep. Hand out a quest from the Quests tab.</p>}
             <ul className="workers">
               {working.map((a) => (
                 <li key={a.id} onClick={() => a.questId && openQuest(a.questId)} className={a.questId ? "clickable" : ""}>
                   <Sprite role={a.role} activity={a.activity} size={40} />
                   <div>
-                    <strong>{a.questTitle ?? "Sans quête"}</strong>
+                    <strong>{a.questTitle ?? "No quest"}</strong>
                     <span className="muted">
-                      {repoName(a.repo)} · {a.role === "dev" ? `dev ${a.scope}` : a.role} · {a.step} · {ago(a.startedAt)}
+                      {repoName(a.repo)} · {agentName(a.role, a.scope)} · {a.step} · {ago(a.startedAt)}
                     </span>
                   </div>
                 </li>
@@ -71,8 +71,8 @@ export function Dashboard({ onTab }: { onTab: (t: string) => void }) {
           </section>
 
           <section className="card">
-            <h2>Mains levées</h2>
-            {blocked.length === 0 && <p className="muted">Aucun agent ne t'attend.</p>}
+            <h2>Raised hands</h2>
+            {blocked.length === 0 && <p className="muted">No agent is waiting for you.</p>}
             {blocked.map((q) => (
               <div key={q.id} className="question">
                 <div className="question-head">
@@ -81,7 +81,7 @@ export function Dashboard({ onTab }: { onTab: (t: string) => void }) {
                     {repoName(q.repo)} #{q.number} · {q.title}
                   </button>
                 </div>
-                <blockquote>{q.question ?? "L'agent a posé needs-human. Lis son commentaire sur GitHub."}</blockquote>
+                <blockquote>{q.question ?? "The agent added needs-human. Read its comment on GitHub."}</blockquote>
                 <form
                   onSubmit={async (e) => {
                     e.preventDefault();
@@ -90,20 +90,20 @@ export function Dashboard({ onTab }: { onTab: (t: string) => void }) {
                   }}
                 >
                   <textarea
-                    placeholder="Ta réponse : elle est ajoutée au ticket et l'agent repart"
+                    placeholder="Your answer: it is added to the issue and the agent restarts"
                     value={answers[q.id] ?? ""}
                     onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
                     rows={2}
                   />
-                  <button disabled={busy || !(answers[q.id] ?? "").trim()}>Répondre et relancer</button>
+                  <button disabled={busy || !(answers[q.id] ?? "").trim()}>Answer and restart</button>
                 </form>
               </div>
             ))}
           </section>
 
           <section className="card">
-            <h2>Colis à la porte</h2>
-            {toMerge.length === 0 && <p className="muted">Aucune PR validée par les relecteurs pour l'instant.</p>}
+            <h2>Parcels at the door</h2>
+            {toMerge.length === 0 && <p className="muted">No PR approved by the reviewers yet.</p>}
             {toMerge.map((q) => (
               <div key={q.id} className="parcel">
                 <span>📦</span>
@@ -118,7 +118,7 @@ export function Dashboard({ onTab }: { onTab: (t: string) => void }) {
 
         <div className="col">
           <section className="card">
-            <h2>Succès</h2>
+            <h2>Achievements</h2>
             <ul className="achievements">
               {p.achievements.map((a) => (
                 <li key={a.id} className={a.unlocked ? "unlocked" : ""} title={a.description}>
@@ -136,12 +136,12 @@ export function Dashboard({ onTab }: { onTab: (t: string) => void }) {
               ))}
             </ul>
             <p className="muted small">
-              {p.xp} XP · 100 par quête livrée, +50 si la PR passe les relecteurs du premier coup, +10 par quête créée.
+              {p.xp} XP · 100 per completed quest, +50 if the PR passes review on the first try, +10 per quest created.
             </p>
           </section>
 
           <section className="card">
-            <h2>Fil d'activité</h2>
+            <h2>Activity feed</h2>
             <ul className="feed">
               {world.activity.slice(0, 25).map((e) => (
                 <li key={e.id}>
@@ -162,7 +162,7 @@ export function Dashboard({ onTab }: { onTab: (t: string) => void }) {
           </section>
         </div>
       </div>
-      <p className="muted small legend">Colonnes suivies : {Object.values(STAGE_LABELS).join(" → ")}</p>
+      <p className="muted small legend">Tracked columns: {Object.values(STAGE_LABELS).join(" → ")}</p>
     </div>
   );
 }

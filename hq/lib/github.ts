@@ -1,6 +1,6 @@
-// Accès à l'API REST de GitHub avec le jeton de l'utilisateur connecté.
-// Agir avec ce jeton garde ton login comme expéditeur : les workflows d'agent-platform
-// ne démarrent que pour les logins de allowed_users.
+// GitHub REST API access with the signed-in user's token.
+// Acting with this token keeps your login as the sender: agent-platform workflows
+// only start for logins listed in allowed_users.
 
 import type { RawIssue, RawJob, RawPull, RawRepoData, RawRun } from "./derive";
 import { isActiveRun } from "./derive";
@@ -30,7 +30,7 @@ export async function gh<T>(token: string, path: string, init: RequestInit = {})
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new GitHubError(res.status, `GitHub ${res.status} sur ${path} : ${text.slice(0, 200)}`);
+    throw new GitHubError(res.status, `GitHub ${res.status} on ${path}: ${text.slice(0, 200)}`);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -48,7 +48,7 @@ async function exists(token: string, path: string): Promise<boolean> {
 
 const repoCache = new Map<string, { at: number; repos: string[] }>();
 
-/** Repos branchés sur la plateforme : HQ_REPOS, sinon ceux de l'org qui ont le workflow Agent dev. */
+/** Repos connected to the platform: HQ_REPOS, else the org's repos that have the Agent dev workflow. */
 export async function listConnectedRepos(token: string): Promise<string[]> {
   if (config.repos.length) return config.repos.map((r) => (r.includes("/") ? r : `${config.org}/${r}`));
   const cached = repoCache.get(token);

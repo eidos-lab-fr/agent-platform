@@ -18,3 +18,10 @@ export function parisHourNow(): number {
     new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", hour: "2-digit", hour12: false }).format(new Date()),
   );
 }
+
+const ROLE_NAMES: Record<string, string> = { spec: "spec", securite: "security", tests: "tests", claude: "@claude" };
+
+/** Display name of an agent: "dev front", "security", "@claude"… */
+export function agentName(role: string, scope: string | null): string {
+  return role === "dev" ? `dev ${scope ?? "general"}` : (ROLE_NAMES[role] ?? role);
+}

@@ -5,7 +5,7 @@ import { worldToArcade } from "@/lib/arcade-adapter";
 import { Arcade } from "./arcade/Arcade";
 import { useHQ } from "./HQ";
 
-/** L'onglet Atelier : Agent Arcade branché sur le monde d'Agent HQ. */
+/** The Workshop tab: Agent Arcade wired to the Agent HQ world. */
 export function Atelier() {
   const { world, openQuest } = useHQ();
   const [filter, setFilter] = useState<string>("tous");
@@ -16,7 +16,7 @@ export function Atelier() {
       <div className="atelier-bar">
         <div className="chips">
           <button className={filter === "tous" ? "active" : ""} onClick={() => setFilter("tous")}>
-            Toutes les îles
+            All islands
           </button>
           {world.repos.map((r) => (
             <button key={r.fullName} className={filter === r.fullName ? "active" : ""} onClick={() => setFilter(r.fullName)}>
@@ -26,7 +26,7 @@ export function Atelier() {
         </div>
       </div>
       {world.repos.length === 0 ? (
-        <p className="muted">Aucun repo branché. Onboarde-en un depuis l'Archipel.</p>
+        <p className="muted">No connected repo yet. Onboard one from the Archipelago tab.</p>
       ) : (
         <Arcade snapshot={snapshot} onSelect={openQuest} />
       )}

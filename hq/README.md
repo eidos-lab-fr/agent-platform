@@ -1,49 +1,51 @@
 # Agent HQ
 
-Le QG web et gamifié d'agent-platform : créer des tâches, les confier aux agents, répondre quand ils bloquent et merger, sans passer par l'interface de GitHub. On y voit les agents travailler en direct dans « l'Atelier ».
+The gamified web headquarters for agent-platform: create tasks, hand them to agents, answer when they get stuck and merge, all without the GitHub UI. The "Workshop" shows the agents working live.
 
-GitHub reste la source de vérité. Agent HQ lit les tickets, les PR et les runs GitHub Actions des repos branchés, en déduit l'état de chaque quête et de chaque agent, et agit **avec ton propre jeton GitHub**. C'est indispensable : les workflows d'agent-platform ne démarrent que si l'expéditeur fait partie de `allowed_users`.
+GitHub stays the source of truth. Agent HQ reads the issues, pull requests and GitHub Actions runs of connected repos, derives the state of each quest and each agent, and acts **with your own GitHub token**. That matters: agent-platform workflows only start when the sender is listed in `allowed_users`.
 
-## Onglets
+## Tabs
 
-| Onglet | Contenu |
+| Tab | Content |
 | --- | --- |
-| QG | Agents au travail, mains levées (`needs-human`) avec réponse directe, PR à merger, succès, fil d'activité |
-| L'Atelier | Une pièce par repo : bureaux des devs par scope, tour de relecture (spec, sécurité, tests), coin `@claude`, boîte aux lettres des PR, ta porte de merge. Jour et nuit à l'heure de Paris |
-| Quêtes | Le board en chemin (Backlog → … → Done, Bloqué à part) et la forge à quêtes, avec sa jauge de clarté |
-| Archipel | Les repos branchés, une carte par agent dev (quêtes livrées, taux du premier coup, délai ticket → PR), et l'onboarding d'un nouveau repo |
+| HQ | Agents at work, raised hands (`needs-human`) you can answer in place, PRs ready to merge, achievements, activity feed |
+| Workshop | One room per repo: dev desks per scope, review tower (spec, security, tests), `@claude` corner, PR mailbox, your merge door. Day and night follow Paris time |
+| Quests | The board as a path (Backlog → … → Done, Blocked on the side) and the quest forge with its clarity meter |
+| Archipelago | Connected repos, one card per dev agent (quests completed, first-try rate, issue → PR time), and onboarding for a new repo |
 
-Une quête cliquée ouvre son panneau : lancer un agent, répondre à sa question, demander une correction à `@claude`, merger.
+Clicking a quest opens its panel: launch an agent, answer its question, ask `@claude` for a fix, merge.
 
-## Ce que font les boutons sur GitHub
+## What the buttons do on GitHub
 
-| Action | Appels GitHub |
+| Action | GitHub calls |
 | --- | --- |
-| Créer une quête | Ticket au format du formulaire « Fonctionnalité », label `scope:<x>` |
-| Confier à un agent | Pose `scope:<x>`, retire puis repose `ready-for-dev` |
-| Répondre à une main levée | Ajoute la réponse au corps du ticket (l'agent lit le ticket avec `gh issue view`, qui n'affiche pas les commentaires), la poste en commentaire, retire `needs-human`, relance l'agent |
-| Demander à `@claude` | Commentaire `@claude …` sur la PR ouverte, sinon sur le ticket |
-| Merger | Squash merge, seulement pour une branche `agent/*` qui porte `review:ok`. C'est toujours toi qui cliques |
-| Explorer une île | Lance le workflow `onboard-repo.yml` d'agent-platform |
+| Create a quest | Issue in the format of the "Fonctionnalité" issue form, `scope:<x>` label |
+| Hand to an agent | Adds `scope:<x>`, removes then re-adds `ready-for-dev` |
+| Answer a raised hand | Appends the answer to the issue body (the agent rereads the issue with `gh issue view`, which does not show comments), posts it as a comment, removes `needs-human`, restarts the agent |
+| Ask `@claude` | `@claude …` comment on the open PR, otherwise on the issue |
+| Merge | Squash merge, only for an `agent/*` branch that has `review:ok`. You always click |
+| Explore an island | Runs agent-platform's `onboard-repo.yml` workflow |
 
-## Comment l'état est déduit
+The agent rules, issue form and board columns of agent-platform are in French. Agent HQ's interface is in English, but issues it creates keep the French headings of the issue form so the agents read them as usual.
 
-`lib/derive.ts` transforme les réponses de l'API REST en quêtes et en agents :
+## How state is derived
 
-- **Colonne** : fermé ou PR mergée → Done ; `needs-human` → Bloqué ; PR ouverte avec `review:ok` → Revue humaine ; PR ouverte → PR ouverte ; run « Agent dev » en cours → En développement ; `ready-for-dev` → À développer ; sinon Backlog.
-- **Lien PR → ticket** : branche `agent/<n>-<slug>`, sinon `Closes #n`. **Lien run → ticket** : branche, sinon titre du ticket (`display_title`).
-- **Geste de l'agent dev** : l'étape en cours du job. `anthropics/claude-code-action` → « au travail », les autres étapes → « se prépare ».
-- **Relecteurs** : les jobs `review (spec|securite|tests)` du run « Agents de review ».
+`lib/derive.ts` turns REST API responses into quests and agents:
 
-GitHub ne donne pas les logs d'un job avant sa fin : l'Atelier montre l'étape réelle, pas chaque fichier touché.
+- **Column**: closed or PR merged → Done; `needs-human` → Blocked; open PR with `review:ok` → Human review; open PR → PR open; "Agent dev" run in progress → In development; `ready-for-dev` → Ready for dev; otherwise Backlog.
+- **PR → issue link**: branch `agent/<n>-<slug>`, otherwise `Closes #n`. **Run → issue link**: branch, otherwise the issue title (`display_title`).
+- **Dev agent activity**: the running step of the job. `anthropics/claude-code-action` → "at work", other steps → "getting ready".
+- **Reviewers**: the `review (spec|securite|tests)` jobs of the "Agents de review" run.
 
-Les colonnes « Spec en cours » et « Spec prête » n'apparaissent que si des tickets portent les labels `spec:en-cours` ou `spec:prete`. Agent HQ lit les labels, pas le board GitHub Project.
+GitHub only serves a job's logs once it has finished, so the Workshop shows the real step, not every file touched.
 
-## XP et succès
+The "Spec in progress" and "Spec ready" columns only appear when issues carry the `spec:en-cours` or `spec:prete` labels. Agent HQ reads labels, not the GitHub Project board.
 
-100 XP par quête livrée, +50 si la PR a été mergée avec `review:ok`, +10 par quête créée. Le nombre d'agents lancés ne rapporte rien, puisque chaque lancement coûte des crédits Anthropic. Les succès sont calculés dans `lib/progress.ts` sur les 60 derniers jours.
+## XP and achievements
 
-## Lancer en local
+100 XP per completed quest, +50 if the PR was merged with `review:ok`, +10 per quest created. Launching agents earns nothing, because every launch costs Anthropic credits. Achievements are computed in `lib/progress.ts` over the last 60 days.
+
+## Run it locally
 
 ```bash
 cd hq
@@ -51,19 +53,19 @@ npm ci
 npm run dev
 ```
 
-Sans configuration, l'application tourne en **mode démo** : un monde simulé où des quêtes traversent tout le parcours en environ 4 minutes, avec une main levée de temps en temps. Rien n'est envoyé à GitHub.
+Without configuration, the app runs in **demo mode**: a simulated world where quests go through the whole journey in about 4 minutes, with the occasional raised hand. Nothing is sent to GitHub.
 
-Pour la brancher sur tes vrais repos :
+To connect it to your real repos:
 
-1. Crée une OAuth App GitHub (Settings → Developer settings → OAuth Apps), avec comme URL de callback `<APP_URL>/api/auth/callback`.
-2. Copie `.env.example` en `.env.local` et remplis `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `SESSION_SECRET` (32 caractères ou plus) et `APP_URL`.
-3. `ALLOWED_LOGINS` doit correspondre à `allowed_users` des workflows.
+1. Create a GitHub OAuth App (Settings → Developer settings → OAuth Apps) with `<APP_URL>/api/auth/callback` as the callback URL.
+2. Copy `.env.example` to `.env.local` and fill in `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `SESSION_SECRET` (32 characters or more) and `APP_URL`.
+3. `ALLOWED_LOGINS` must match `allowed_users` in the workflows.
 
-Le jeton demandé a les scopes `repo` et `workflow` (ce dernier pour lancer l'onboarding). Il reste chiffré dans un cookie `httpOnly` et n'est jamais envoyé au navigateur. La clé Anthropic reste dans les secrets GitHub : Agent HQ n'en a pas besoin.
+The requested token has the `repo` and `workflow` scopes (the latter to start onboarding). It stays encrypted in an `httpOnly` cookie and is never sent to the browser. The Anthropic key stays in GitHub secrets: Agent HQ does not need it.
 
-Les repos suivis sont ceux de `GITHUB_ORG` qui contiennent `.github/workflows/agent-dev.yml`, ou la liste fixe `HQ_REPOS`.
+The repos followed are those of `GITHUB_ORG` that contain `.github/workflows/agent-dev.yml`, or the fixed list in `HQ_REPOS`.
 
-## Vérifications
+## Checks
 
 ```bash
 npm run typecheck
@@ -71,10 +73,14 @@ npm test
 npm run build
 ```
 
-## Hébergement
+## Hosting
 
-N'importe quel hébergeur Node (Vercel, Fly.io, Render). Le flux en direct utilise des Server-Sent Events et interroge GitHub toutes les 10 secondes par visiteur connecté, avec un cache de 8 secondes.
+Any Node host works (Vercel, Fly.io, Render). The live stream uses Server-Sent Events and polls GitHub every 10 seconds per signed-in viewer, with an 8-second cache.
 
-## Prochaines étapes
+## Agent Arcade
 
-Voir le plan : webhooks GitHub et journal d'événements en base (au lieu de l'interrogation régulière), coût par quête lu dans le fichier d'exécution de `claude-code-action`, télémétrie fine par des hooks Claude Code dans les workflows, vitrine publique en lecture seule sur eidoslab.fr.
+The Workshop view lives in `components/arcade/` and depends only on React, so it can later be published on its own. See [components/arcade/README.md](components/arcade/README.md).
+
+## Next steps
+
+From the plan: GitHub webhooks and an event log in a database (instead of polling), cost per quest read from `claude-code-action`'s execution file, fine-grained telemetry through Claude Code hooks in the workflows, a public read-only showcase on eidoslab.fr.

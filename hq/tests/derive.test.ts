@@ -16,7 +16,7 @@ const pr = (over: Partial<Parameters<typeof stageOf>[0]["pr"] & object> = {}) =>
 });
 
 describe("stageOf", () => {
-  it("suit le parcours d'agent-platform", () => {
+  it("follows the agent-platform journey", () => {
     expect(stageOf({ state: "open", labels: [], pr: null, devRunning: false })).toBe("backlog");
     expect(stageOf({ state: "open", labels: ["ready-for-dev"], pr: null, devRunning: false })).toBe("a_developper");
     expect(stageOf({ state: "open", labels: ["ready-for-dev"], pr: null, devRunning: true })).toBe("en_developpement");
@@ -25,13 +25,13 @@ describe("stageOf", () => {
     expect(stageOf({ state: "open", labels: [], pr: pr({ verdict: "ok" }), devRunning: false })).toBe("revue_humaine");
     expect(stageOf({ state: "closed", labels: [], pr: pr({ state: "merged" }), devRunning: false })).toBe("done");
   });
-  it("donne la priorité à needs-human sur une PR ouverte", () => {
+  it("gives needs-human priority over an open PR", () => {
     expect(stageOf({ state: "open", labels: ["needs-human"], pr: pr(), devRunning: false })).toBe("bloque");
   });
 });
 
 describe("issueNumberOfPull", () => {
-  it("lit la branche agent/<n>-slug, puis Closes #n", () => {
+  it("reads the agent/<n>-slug branch, then Closes #n", () => {
     expect(issueNumberOfPull({ head: { ref: "agent/42-export-pdf" }, body: null })).toBe(42);
     expect(issueNumberOfPull({ head: { ref: "feature/x" }, body: "Closes #7 et spec" })).toBe(7);
     expect(issueNumberOfPull({ head: { ref: "feature/x" }, body: "rien" })).toBeNull();
@@ -52,7 +52,7 @@ function single(phase: number, extra: Partial<Parameters<typeof buildQuest>[0]> 
 }
 
 describe("deriveAgents", () => {
-  it("met l'agent dev du bon scope au travail pendant claude-code-action", () => {
+  it("puts the dev agent of the right scope to work during claude-code-action", () => {
     const data = single(60);
     const quests = deriveQuests(data);
     expect(quests[0].stage).toBe("en_developpement");
@@ -63,7 +63,7 @@ describe("deriveAgents", () => {
     expect(api.activity).toBe("idle");
   });
 
-  it("fait relire les trois relecteurs puis passe en revue humaine", () => {
+  it("runs the three reviewers, then moves to human review", () => {
     const data = single(140);
     const quests = deriveQuests(data);
     expect(quests[0].stage).toBe("pr_ouverte");
@@ -74,16 +74,16 @@ describe("deriveAgents", () => {
     expect(deriveQuests(later)[0].stage).toBe("revue_humaine");
   });
 
-  it("lève la main avec la question de l'agent quand needs-human est posé", () => {
+  it("raises a hand with the agent's question when needs-human is added", () => {
     const data = single(80, { blockFrom: 70, blockTo: 115 });
     const quests = deriveQuests(data);
     expect(quests[0].stage).toBe("bloque");
-    expect(quests[0].question).toContain("Laquelle");
+    expect(quests[0].question).toContain("Which one");
     const dev = deriveAgents(data, quests).find((a) => a.activity === "blocked");
     expect(dev?.scope).toBe("front");
   });
 
-  it("crée un second agent quand deux quêtes du même scope tournent en même temps", () => {
+  it("adds a second agent when two quests of the same scope run at once", () => {
     const a = single(60);
     const b = buildQuest({ repo: "o/r", number: 9, title: "Autre", scope: "front", start: Date.now() - 50_000, phase: 50 });
     a.issues.push(b.issue);
@@ -95,8 +95,8 @@ describe("deriveAgents", () => {
   });
 });
 
-describe("monde de démo", () => {
-  it("produit un monde cohérent", () => {
+describe("demo world", () => {
+  it("produces a consistent world", () => {
     const world = assembleWorld(demoRawData(), "demo", "demo");
     expect(world.repos.length).toBe(3);
     expect(world.quests.length).toBeGreaterThan(10);

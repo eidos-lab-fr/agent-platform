@@ -1,4 +1,4 @@
-// Assemble le monde complet : quêtes, agents, activité et progression.
+// Assembles the whole world: quests, agents, activity and progress.
 
 import { deriveActivity, deriveAgents, deriveQuests, type RawRepoData } from "./derive";
 import { demoRawData } from "./demo";

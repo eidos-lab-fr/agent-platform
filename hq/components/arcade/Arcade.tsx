@@ -1,7 +1,7 @@
 "use client";
 
-// Agent Arcade : dessine des pièces où de petits agents travaillent, d'après un instantané
-// (prop `snapshot`) ou une source qui en publie (prop `source`). Aucune dépendance à Agent HQ.
+// Agent Arcade: draws rooms where little agents work, from a snapshot (`snapshot` prop)
+// or a source that publishes snapshots (`source` prop). No dependency on Agent HQ.
 
 import { useEffect, useState } from "react";
 import "./arcade.css";
@@ -12,13 +12,13 @@ import type { ArcadeAgent, ArcadeRoleStyle, ArcadeRoom, ArcadeSnapshot, ArcadeSo
 export type { ArcadeAgent, ArcadeRoom, ArcadeSnapshot, ArcadeSource } from "./types";
 
 const ACTIVITY_TEXT: Record<ArcadeAgent["activity"], string> = {
-  idle: "dort",
-  queued: "attend son tour",
-  preparing: "se prépare",
-  working: "travaille",
-  reviewing: "relit",
-  blocked: "lève la main",
-  failed: "est K.O.",
+  idle: "is asleep",
+  queued: "is waiting its turn",
+  preparing: "is getting ready",
+  working: "is working",
+  reviewing: "is reviewing",
+  blocked: "is raising its hand",
+  failed: "is knocked out",
 };
 
 export function elapsed(iso: string | null | undefined, now = Date.now()): string {
@@ -31,7 +31,7 @@ export function elapsed(iso: string | null | undefined, now = Date.now()): strin
   return h < 48 ? `${h} h` : `${Math.round(h / 24)} j`;
 }
 
-/** Abonne le composant à une source d'instantanés. */
+/** Subscribes the component to a snapshot source. */
 export function useArcadeSource(source: ArcadeSource | undefined): ArcadeSnapshot | null {
   const [snapshot, setSnapshot] = useState<ArcadeSnapshot | null>(null);
   useEffect(() => (source ? source.subscribe(setSnapshot) : undefined), [source]);
@@ -43,9 +43,9 @@ interface Props {
   source?: ArcadeSource;
   palette?: Record<string, ArcadeRoleStyle>;
   onSelect?: (targetId: string) => void;
-  /** Fuseau horaire du cycle jour et nuit. */
+  /** Time zone of the day and night cycle. */
   timeZone?: string;
-  /** Affiche la légende des rôles. */
+  /** Shows the role legend. */
   legend?: boolean;
 }
 
@@ -70,7 +70,7 @@ export function Arcade({ snapshot, source, palette = DEFAULT_PALETTE, onSelect, 
 
   return (
     <div className={`arcade ${night ? "night" : "day"}`}>
-      <div className="arcade-sky">{night ? "🌙 Nuit" : "☀️ Jour"}</div>
+      <div className="arcade-sky">{night ? "🌙 Night" : "☀️ Day"}</div>
       {legend && (
         <div className="arcade-legend">
           {Object.entries(palette).map(([role, c]) => (
@@ -80,7 +80,7 @@ export function Arcade({ snapshot, source, palette = DEFAULT_PALETTE, onSelect, 
           ))}
         </div>
       )}
-      {!data && <p className="arcade-muted">Les agents arrivent…</p>}
+      {!data && <p className="arcade-muted">The agents are on their way…</p>}
       {data?.rooms.map((room) => <Room key={room.id} room={room} palette={palette} onSelect={onSelect} />)}
     </div>
   );

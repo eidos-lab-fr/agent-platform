@@ -1,4 +1,4 @@
-// Configuration lue dans l'environnement (voir .env.example).
+// Configuration read from the environment (see .env.example).
 
 const list = (v: string | undefined) =>
   (v ?? "")
@@ -17,5 +17,5 @@ export const config = {
   repos: list(process.env.HQ_REPOS),
 };
 
-/** Sans application OAuth configurée, Agent HQ tourne en mode démo. */
+/** Without a configured OAuth app, Agent HQ runs in demo mode. */
 export const isDemo = () => !config.clientId || !config.clientSecret || !config.sessionSecret;

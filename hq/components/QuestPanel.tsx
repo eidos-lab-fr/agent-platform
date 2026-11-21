@@ -4,7 +4,7 @@ import { useState } from "react";
 import { STAGE_LABELS, type Quest, type Stage } from "@/lib/types";
 import { useHQ } from "./HQ";
 import { Sprite } from "./arcade/Sprite";
-import { ago, repoName } from "./util";
+import { agentName, ago, repoName } from "./util";
 
 const JOURNEY: Stage[] = ["backlog", "a_developper", "en_developpement", "pr_ouverte", "revue_humaine", "done"];
 
@@ -23,7 +23,7 @@ export function QuestPanel({ quest: q, onClose }: { quest: Quest; onClose: () =>
         <span className="muted">
           {repoName(q.repo)} #{q.number} · {STAGE_LABELS[q.stage]}
         </span>
-        <button className="ghost" onClick={onClose} aria-label="Fermer">
+        <button className="ghost" onClick={onClose} aria-label="Close">
           ✕
         </button>
       </header>
@@ -43,11 +43,11 @@ export function QuestPanel({ quest: q, onClose }: { quest: Quest; onClose: () =>
             <div key={a.id} className="panel-agent">
               <Sprite role={a.role} activity={a.activity} size={40} />
               <span>
-                <strong>{a.role === "dev" ? `Dev ${a.scope}` : a.role}</strong> · {a.step} · {ago(a.startedAt)}
+                <strong>{agentName(a.role, a.scope)}</strong> · {a.step} · {ago(a.startedAt)}
                 {a.runUrl && (
                   <>
                     {" "}
-                    · <a href={a.runUrl} target="_blank" rel="noreferrer">voir le run</a>
+                    · <a href={a.runUrl} target="_blank" rel="noreferrer">see the run</a>
                   </>
                 )}
               </span>
@@ -58,36 +58,36 @@ export function QuestPanel({ quest: q, onClose }: { quest: Quest; onClose: () =>
 
       {q.stage === "bloque" && (
         <section className="panel-block">
-          <h3>✋ L'agent te demande</h3>
-          <blockquote>{q.question ?? "Lis son dernier commentaire sur GitHub."}</blockquote>
-          <textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="Ta réponse" />
+          <h3>✋ The agent asks</h3>
+          <blockquote>{q.question ?? "Read its latest comment on GitHub."}</blockquote>
+          <textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="Your answer" />
           <button
             className="primary"
             disabled={busy || !text.trim()}
             onClick={async () => (await act({ type: "answer", repo: q.repo, number: q.number, text })).ok && setText("")}
           >
-            Répondre et relancer l'agent
+            Answer and restart the agent
           </button>
         </section>
       )}
 
       {canLaunch && (
         <section className="panel-block">
-          <h3>🚀 Confier à un agent</h3>
+          <h3>🚀 Hand to an agent</h3>
           <div className="row">
             <select value={scope} onChange={(e) => setScope(e.target.value)}>
               {scopes.map((s) => (
                 <option key={s} value={s}>
-                  bureau {s}
+                  {s} desk
                 </option>
               ))}
-              <option value="general">général</option>
+              <option value="general">general</option>
             </select>
             <button className="primary" disabled={busy} onClick={() => act({ type: "launch", repo: q.repo, number: q.number, scope })}>
-              Lancer
+              Launch
             </button>
           </div>
-          <p className="muted small">Pose scope:{scope} puis ready-for-dev avec ton compte : l'agent dev démarre.</p>
+          <p className="muted small">Adds scope:{scope}, then ready-for-dev, with your account: the dev agent starts.</p>
         </section>
       )}
 
@@ -98,28 +98,28 @@ export function QuestPanel({ quest: q, onClose }: { quest: Quest; onClose: () =>
             <a href={q.pr.url} target="_blank" rel="noreferrer">
               {q.pr.title}
             </a>{" "}
-            · branche <code>{q.pr.branch}</code>
+            · branch <code>{q.pr.branch}</code>
           </p>
           <p>
-            Verdict des relecteurs :{" "}
+            Reviewer verdict:{" "}
             {q.pr.verdict === "ok" ? (
               <span className="badge ok">review:ok</span>
             ) : q.pr.verdict === "changes" ? (
               <span className="badge ko">review:changes</span>
             ) : (
-              <span className="badge">en attente</span>
+              <span className="badge">pending</span>
             )}
           </p>
           {q.stage === "revue_humaine" && (
             <>
               <p className="muted small">
-                Relis le diff sur GitHub avant de merger : un humain merge toujours, et c'est toi.{" "}
+                Read the diff on GitHub before merging: a human always merges, and that human is you.{" "}
                 <a href={`${q.pr.url}/files`} target="_blank" rel="noreferrer">
-                  Ouvrir le diff
+                  Open the diff
                 </a>
               </p>
               <button className="gold-btn" disabled={busy} onClick={() => act({ type: "merge", repo: q.repo, prNumber: q.pr!.number })}>
-                Merger et livrer la quête
+                Merge and complete the quest
               </button>
             </>
           )}
@@ -128,24 +128,24 @@ export function QuestPanel({ quest: q, onClose }: { quest: Quest; onClose: () =>
 
       {q.state === "open" && (
         <section className="panel-block">
-          <h3>✨ Demander à @claude</h3>
-          <textarea rows={2} value={q.stage === "bloque" ? "" : text} onChange={(e) => setText(e.target.value)} placeholder="Corrige le test qui échoue sur…" disabled={q.stage === "bloque"} />
+          <h3>✨ Ask @claude</h3>
+          <textarea rows={2} value={q.stage === "bloque" ? "" : text} onChange={(e) => setText(e.target.value)} placeholder="Fix the failing test on…" disabled={q.stage === "bloque"} />
           <button
             disabled={busy || !text.trim() || q.stage === "bloque"}
             onClick={async () =>
               (await act({ type: "claude", repo: q.repo, number: q.pr?.state === "open" ? q.pr.number : q.number, text })).ok && setText("")
             }
           >
-            Envoyer sur {q.pr?.state === "open" ? `la PR #${q.pr.number}` : "le ticket"}
+            Send to {q.pr?.state === "open" ? `PR #${q.pr.number}` : "the issue"}
           </button>
         </section>
       )}
 
       <section className="panel-block">
         <h3>📜 Description</h3>
-        <pre className="body">{q.body || "Pas de description."}</pre>
+        <pre className="body">{q.body || "No description."}</pre>
         <a href={q.url} target="_blank" rel="noreferrer">
-          Ouvrir sur GitHub
+          Open on GitHub
         </a>
       </section>
     </aside>

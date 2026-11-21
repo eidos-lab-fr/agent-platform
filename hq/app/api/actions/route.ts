@@ -6,10 +6,10 @@ import { getSession } from "@/lib/session";
 import { invalidateWorld } from "@/lib/world";
 
 export async function POST(req: Request) {
-  // Protection CSRF : la requête doit venir de l'application elle-même.
+  // CSRF protection: the request must come from the app itself.
   const origin = req.headers.get("origin");
   if (!isDemo() && origin !== new URL(config.appUrl).origin) {
-    return NextResponse.json({ ok: false, message: "Origine refusée." }, { status: 403 });
+    return NextResponse.json({ ok: false, message: "Origin refused." }, { status: 403 });
   }
   const action = (await req.json().catch(() => null)) as Action | null;
   const problem = validate(action as Action);
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   const session = await getSession();
   if (!session) {
     if (isDemo()) return NextResponse.json(runDemoAction(action!));
-    return NextResponse.json({ ok: false, message: "Non connecté." }, { status: 401 });
+    return NextResponse.json({ ok: false, message: "Not signed in." }, { status: 401 });
   }
   try {
     const result = await runAction(session, action!);

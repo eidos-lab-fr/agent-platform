@@ -11,10 +11,10 @@ import { Quests } from "./Quests";
 
 type Tab = "qg" | "atelier" | "quetes" | "archipel";
 const TABS: { id: Tab; label: string }[] = [
-  { id: "qg", label: "QG" },
-  { id: "atelier", label: "L'Atelier" },
-  { id: "quetes", label: "Quêtes" },
-  { id: "archipel", label: "Archipel" },
+  { id: "qg", label: "HQ" },
+  { id: "atelier", label: "Workshop" },
+  { id: "quetes", label: "Quests" },
+  { id: "archipel", label: "Archipelago" },
 ];
 
 interface HQContext {
@@ -26,7 +26,7 @@ interface HQContext {
 const Ctx = createContext<HQContext | null>(null);
 export const useHQ = () => {
   const c = useContext(Ctx);
-  if (!c) throw new Error("useHQ hors de HQ");
+  if (!c) throw new Error("useHQ used outside HQ");
   return c;
 };
 
@@ -39,7 +39,7 @@ export function HQ({ initial }: { initial: World | null }) {
   const [live, setLive] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sober, setSober] = useState(false);
-  // Les durées (« il y a 3 min ») dépendent de l'heure du navigateur : rendu côté client seulement.
+  // Durations ("3 min ago") depend on the browser clock: render on the client only.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -92,7 +92,7 @@ export function HQ({ initial }: { initial: World | null }) {
   if (!world || !mounted) {
     return (
       <main className="loading">
-        <p>Le QG se réveille…</p>
+        <p>HQ is waking up…</p>
         {problem && <p className="error">{problem}</p>}
       </main>
     );
@@ -108,36 +108,36 @@ export function HQ({ initial }: { initial: World | null }) {
         <header className="topbar">
           <div className="brand">
             <span className="brand-mark">◆</span> Agent HQ
-            {world.mode === "demo" && <span className="badge demo">démo</span>}
+            {world.mode === "demo" && <span className="badge demo">demo</span>}
           </div>
-          <nav className="tabs" aria-label="Onglets">
+          <nav className="tabs" aria-label="Tabs">
             {TABS.map((t) => (
               <button key={t.id} className={tab === t.id ? "active" : ""} onClick={() => setTab(t.id)}>
                 {t.label}
-                {t.id === "qg" && blocked > 0 && <span className="dot" aria-label={`${blocked} agents attendent`}>{blocked}</span>}
+                {t.id === "qg" && blocked > 0 && <span className="dot" aria-label={`${blocked} agents waiting`}>{blocked}</span>}
               </button>
             ))}
           </nav>
           <div className="player">
             <div className="level" title={`${p.xp} XP`}>
-              <span className="lvl">Niv. {p.level}</span>
+              <span className="lvl">Lvl {p.level}</span>
               <span className="xpbar">
                 <span style={{ width: `${Math.round((p.xpIntoLevel / p.xpForNextLevel) * 100)}%` }} />
               </span>
             </div>
-            <span className={`live ${live ? "on" : ""}`} title={live ? "En direct" : "Hors ligne"} />
-            <button className="ghost small" onClick={() => setSober(!sober)} title="Mode sobre : moins d'animations">
-              {sober ? "Mode jeu" : "Mode sobre"}
+            <span className={`live ${live ? "on" : ""}`} title={live ? "Live" : "Offline"} />
+            <button className="ghost small" onClick={() => setSober(!sober)} title="Calm mode: fewer animations">
+              {sober ? "Game mode" : "Calm mode"}
             </button>
             {world.mode === "github" ? (
               <form action="/api/auth/logout" method="post">
-                <button className="ghost small">{world.login} · sortir</button>
+                <button className="ghost small">{world.login} · sign out</button>
               </form>
             ) : null}
           </div>
         </header>
 
-        {problem && <div className="banner error">GitHub ne répond pas comme prévu : {problem}</div>}
+        {problem && <div className="banner error">GitHub is not responding as expected: {problem}</div>}
 
         <main className="content">
           {tab === "qg" && <Dashboard onTab={(t) => setTab(t as Tab)} />}
