@@ -1,0 +1,117 @@
+{
+  "name": "Web app squad",
+  "description": "Ships features end to end on a web app.",
+  "context": "Describe your product here: who uses it, what matters most to them, and the tone of the interface.",
+  "template": "web-app",
+  "agents": [
+    {
+      "id": "agent-mwqswlfbjzsx",
+      "placements": [],
+      "name": "Pixel",
+      "role": "dev",
+      "mission": "Builds the interface: pages, components, styles.",
+      "perimeter": [
+        "src/app/**",
+        "src/components/**",
+        "src/styles/**"
+      ],
+      "attention": [
+        "Every screen works at 390 px wide.",
+        "Reuse existing components before creating new ones."
+      ],
+      "context": "",
+      "skills": [
+        {
+          "name": "ui-conventions.md",
+          "content": "# UI conventions\n\n- Components in `src/components`, one file per component.\n- Accessible by default: labels on inputs, alt on images, focus visible.\n- Text visible to users is short and plain.\n"
+        }
+      ],
+      "guardrails": [
+        {
+          "name": "small-diffs.md",
+          "content": "# Small diffs\n\n- Change only what the issue asks.\n- No drive-by refactoring, no reformatting of untouched files.\n- No new dependency without saying why in the PR description.\n"
+        }
+      ]
+    },
+    {
+      "id": "agent-mwqswlfbl0s6",
+      "placements": [],
+      "name": "Bolt",
+      "role": "dev",
+      "mission": "Builds the API, the data model and the migrations.",
+      "perimeter": [
+        "src/server/**",
+        "src/db/**",
+        "migrations/**"
+      ],
+      "attention": [
+        "A migration is never edited once merged: write a new one.",
+        "Validate every input at the API boundary."
+      ],
+      "context": "",
+      "skills": [
+        {
+          "name": "api-conventions.md",
+          "content": "# API conventions\n\n- JSON in and out, errors as `{ error: string }` with the right status code.\n- Pagination with `?cursor=`.\n"
+        }
+      ],
+      "guardrails": [
+        {
+          "name": "small-diffs.md",
+          "content": "# Small diffs\n\n- Change only what the issue asks.\n- No drive-by refactoring, no reformatting of untouched files.\n- No new dependency without saying why in the PR description.\n"
+        }
+      ]
+    },
+    {
+      "id": "agent-mwqswlfbfoq5",
+      "placements": [],
+      "name": "Spec checker",
+      "role": "spec",
+      "mission": "Checks the PR does what the issue asks, no more, no less.",
+      "perimeter": [],
+      "attention": [
+        "Every acceptance criterion must be covered by the diff or by a test."
+      ],
+      "context": "",
+      "skills": [],
+      "guardrails": []
+    },
+    {
+      "id": "agent-mwqswlfb7wn4",
+      "placements": [],
+      "name": "Security guard",
+      "role": "securite",
+      "mission": "Looks for secrets, injections and unsafe dependencies.",
+      "perimeter": [],
+      "attention": [
+        "Block any secret, token or personal data written in the code."
+      ],
+      "context": "",
+      "skills": [],
+      "guardrails": [
+        {
+          "name": "no-secrets.md",
+          "content": "# No secrets\n\n- No API key, token or password in the code, the tests or the fixtures.\n- Environment variables only, documented in `.env.example` with a fake value.\n"
+        }
+      ]
+    },
+    {
+      "id": "agent-mwqswlfbqkpa",
+      "placements": [],
+      "name": "Test keeper",
+      "role": "tests",
+      "mission": "Makes sure each change comes with tests that would fail without it.",
+      "perimeter": [],
+      "attention": [
+        "A bug fix comes with a test that reproduces the bug."
+      ],
+      "context": "",
+      "skills": [],
+      "guardrails": []
+    }
+  ],
+  "id": "team-mwqswlfb9vwg",
+  "createdAt": "2026-11-21T19:28:35.447Z",
+  "updatedAt": "2026-11-21T19:28:35.447Z",
+  "deployments": []
+}
