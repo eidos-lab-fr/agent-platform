@@ -1,14 +1,8 @@
-// La mascotte d'Agent HQ : un petit personnage original en pixel art, décliné par métier.
+// La mascotte d'Agent Arcade : un petit personnage original en pixel art, décliné par rôle.
 
-import type { AgentActivity, AgentRole } from "@/lib/types";
-
-export const ROLE_COLORS: Record<AgentRole, { body: string; shade: string; label: string }> = {
-  dev: { body: "#f0915e", shade: "#c96a3c", label: "Dev" },
-  spec: { body: "#6fa8ff", shade: "#4a7fd1", label: "Relecteur spec" },
-  securite: { body: "#b58cff", shade: "#8a63d6", label: "Relecteur sécurité" },
-  tests: { body: "#5fd39a", shade: "#3aa775", label: "Relecteur tests" },
-  claude: { body: "#f5c84c", shade: "#c99d24", label: "@claude" },
-};
+import "./arcade.css";
+import { styleOf } from "./palette";
+import type { ArcadeActivity, ArcadeRoleStyle } from "./types";
 
 // 12 × 13 pixels. B corps, S ombre, W blanc des yeux, P pupille, M bouche, L jambes, A antenne.
 const BODY = [
@@ -27,7 +21,7 @@ const BODY = [
   "...LL..LL...",
 ];
 
-function eyes(activity: AgentActivity): string[] | null {
+function eyes(activity: ArcadeActivity): string[] | null {
   if (activity === "idle") return ["..BBBBBBBB..", "..BPPBBPPB.."]; // yeux fermés
   if (activity === "failed") return ["..BPBBBPBB..", "..BBPBBBPB.."]; // yeux en croix
   return null;
@@ -37,12 +31,14 @@ export function Sprite({
   role,
   activity,
   size = 48,
+  palette,
 }: {
-  role: AgentRole;
-  activity: AgentActivity;
+  role: string;
+  activity: ArcadeActivity;
   size?: number;
+  palette?: Record<string, ArcadeRoleStyle>;
 }) {
-  const c = ROLE_COLORS[role];
+  const c = styleOf(role, palette);
   const rows = [...BODY];
   const e = eyes(activity);
   if (e) {
@@ -64,10 +60,9 @@ export function Sprite({
       if (ch !== ".") px.push(<rect key={`${x}-${y}`} x={x} y={y} width={1.02} height={1.02} fill={fill[ch]} />);
     }),
   );
-  const raised = activity === "blocked";
   return (
     <svg
-      className={`sprite sprite-${activity}`}
+      className={`arcade-sprite sprite-${activity}`}
       viewBox="-2 -2 16 16"
       width={size}
       height={size}
@@ -78,19 +73,19 @@ export function Sprite({
       <g className="sprite-body">{px}</g>
       {/* Mains : levée quand l'agent attend une réponse, sinon de chaque côté. */}
       <g className="sprite-hands" fill={c.shade}>
-        {raised ? <rect x={10} y={2} width={1} height={5} /> : <rect className="hand-r" x={10} y={8} width={1} height={2} />}
+        {activity === "blocked" ? <rect x={10} y={2} width={1} height={5} /> : <rect className="hand-r" x={10} y={8} width={1} height={2} />}
         <rect className="hand-l" x={1} y={8} width={1} height={2} />
       </g>
-      {role === "dev" && <rect x={3} y={2} width={6} height={1} fill="#2b2140" />}
-      {role === "spec" && (
+      {c.prop === "cap" && <rect x={3} y={2} width={6} height={1} fill="#2b2140" />}
+      {c.prop === "magnifier" && (
         <g className="prop">
           <rect x={11} y={8} width={2} height={2} fill="none" stroke="#2b2140" strokeWidth={0.5} />
           <rect x={12.5} y={10} width={0.6} height={1.6} fill="#2b2140" />
         </g>
       )}
-      {role === "securite" && <path className="prop" d="M-1.5 7h3v2.5l-1.5 1.5l-1.5-1.5z" fill="#2b2140" />}
-      {role === "tests" && <path className="prop" d="M11 7h2v1l1 3h-4l1-3z" fill="#8ff0c3" stroke="#2b2140" strokeWidth={0.3} />}
-      {role === "claude" && <path className="prop" d="M10.5 0l.5 1 1 .5-1 .5-.5 1-.5-1-1-.5 1-.5z" fill="#fff4c2" />}
+      {c.prop === "shield" && <path className="prop" d="M-1.5 7h3v2.5l-1.5 1.5l-1.5-1.5z" fill="#2b2140" />}
+      {c.prop === "flask" && <path className="prop" d="M11 7h2v1l1 3h-4l1-3z" fill="#8ff0c3" stroke="#2b2140" strokeWidth={0.3} />}
+      {c.prop === "spark" && <path className="prop" d="M10.5 0l.5 1 1 .5-1 .5-.5 1-.5-1-1-.5 1-.5z" fill="#fff4c2" />}
       {activity === "idle" && (
         <text className="zzz" x={10} y={1} fontSize={3} fill="#cfc8ff">
           z

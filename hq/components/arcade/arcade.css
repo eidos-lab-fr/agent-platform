@@ -1,0 +1,399 @@
+/* Agent Arcade : styles autonomes. Les couleurs se surchargent avec les variables --arcade-*. */
+.arcade {
+  --a-line: var(--arcade-line, #463f74);
+  --a-panel: var(--arcade-panel, #2a2549);
+  --a-panel-2: var(--arcade-panel-2, #332d58);
+  --a-bg-2: var(--arcade-bg-2, #201c3a);
+  --a-text: var(--arcade-text, #f1eeff);
+  --a-muted: var(--arcade-muted, #a59fcc);
+  --a-gold: var(--arcade-gold, #f5c84c);
+  --a-bad: var(--arcade-bad, #ff6b81);
+  color: var(--a-text);
+  font-family: inherit;
+}
+.arcade button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.arcade-muted {
+  color: var(--a-muted);
+}
+.arcade-muted.small {
+  font-size: 13px;
+}
+.arcade-sky {
+  text-align: right;
+  color: var(--a-muted);
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.arcade-room-head h2 {
+  font-family: "Press Start 2P", ui-monospace, monospace;
+  font-size: 12px;
+  margin: 0 0 12px;
+  line-height: 1.6;
+}
+.arcade-item {
+  border: 1px solid var(--a-line);
+  background: var(--a-panel-2);
+  border-radius: 8px;
+}
+.arcade-item:disabled {
+  cursor: default;
+}
+@keyframes drop {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arcade * {
+    animation: none !important;
+  }
+}
+.arcade-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--a-muted);
+  margin-bottom: 16px;
+}
+.arcade-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 4px;
+}
+
+/* L'Atelier */
+.arcade {
+  border-radius: 16px;
+  padding: 16px;
+  transition: background 2s;
+}
+.arcade.day {
+  background: linear-gradient(180deg, #2c2650 0%, #221d40 100%);
+}
+.arcade.night {
+  background: linear-gradient(180deg, #0f0d22 0%, #17142a 100%);
+}
+.arcade-room {
+  background: var(--a-bg-2);
+  border: 1px solid var(--a-line);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 18px;
+}
+.arcade-room-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.arcade-floor {
+  display: grid;
+  grid-template-columns: 2fr 1.4fr 0.8fr;
+  grid-template-areas:
+    "main side corner"
+    "main bottom bottomCorner";
+  gap: 12px;
+  background-image: linear-gradient(var(--a-line) 1px, transparent 1px), linear-gradient(90deg, var(--a-line) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-color: #1c1835;
+  background-blend-mode: soft-light;
+  border-radius: 10px;
+  padding: 12px;
+}
+@media (max-width: 900px) {
+  .arcade-floor {
+    grid-template-columns: 1fr;
+    grid-template-areas: "main" "side" "corner" "bottom" "bottomCorner";
+  }
+}
+.arcade-zone {
+  background: rgba(42, 37, 73, 0.85);
+  border: 1px solid var(--a-line);
+  border-radius: 10px;
+  padding: 10px;
+  min-width: 0;
+}
+.arcade-zone h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--a-muted);
+}
+.slot-main {
+  grid-area: main;
+}
+.slot-side {
+  grid-area: side;
+}
+.slot-corner {
+  grid-area: corner;
+}
+.slot-bottom {
+  grid-area: bottom;
+}
+.slot-bottomCorner {
+  grid-area: bottomCorner;
+}
+.arcade-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+.arcade-desk {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.arcade-desk-agents {
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+}
+.arcade-desk-top {
+  width: 100%;
+  min-width: 96px;
+  height: 12px;
+  background: #7a5a3c;
+  border-bottom: 4px solid #5a3f28;
+  border-radius: 3px;
+}
+.arcade-spot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 72px 4px 4px;
+  min-width: 112px;
+}
+.arcade-spot:disabled {
+  opacity: 1;
+}
+.arcade-spot:not(:disabled):hover .arcade-sprite {
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.5));
+}
+.arcade-spot-label {
+  font-size: 11px;
+  color: var(--a-muted);
+  margin-top: 2px;
+}
+.arcade-bubble {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 118px;
+  background: #fffdf5;
+  color: #1f1a2e;
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 11px;
+  line-height: 1.3;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+  z-index: 2;
+}
+.arcade-bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  margin-left: -6px;
+  border: 6px solid transparent;
+  border-bottom: none;
+  border-top-color: #fffdf5;
+}
+.arcade-bubble strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.arcade-bubble span {
+  color: #5a5378;
+}
+.bubble-blocked {
+  background: #ffe1e6;
+  animation: wobble 1.2s infinite;
+}
+.bubble-blocked::after {
+  border-top-color: #ffe1e6;
+}
+.bubble-failed {
+  background: #ddd;
+}
+.bubble-failed::after {
+  border-top-color: #ddd;
+}
+.arcade-bubble-q {
+  position: absolute;
+  right: -8px;
+  top: -8px;
+  background: var(--a-bad);
+  color: #fff;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+.arcade-sparks {
+  position: absolute;
+  right: 14px;
+  bottom: 30px;
+  color: var(--a-gold);
+  animation: spark 0.9s infinite;
+}
+.arcade-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.arcade-item {
+  font-size: 12px;
+  padding: 4px 8px;
+  animation: drop 0.5s ease-out;
+}
+.arcade-item.gold {
+  border-color: var(--a-gold);
+}
+
+/* Animations de la mascotte */
+.arcade-sprite {
+  overflow: visible;
+  transition: width 0.3s, height 0.3s;
+}
+.sprite-working .sprite-body {
+  animation: bob 0.5s steps(2) infinite;
+}
+.sprite-working .hand-l,
+.sprite-working .hand-r {
+  animation: type 0.25s steps(2) infinite;
+}
+.sprite-working .hand-r {
+  animation-delay: 0.12s;
+}
+.sprite-reviewing .sprite-body,
+.sprite-reviewing .prop {
+  animation: tilt 1.6s ease-in-out infinite;
+  transform-origin: 6px 12px;
+}
+.sprite-blocked {
+  animation: hop 1s ease-in-out infinite;
+}
+.sprite-idle .sprite-body {
+  animation: breathe 3s ease-in-out infinite;
+  transform-origin: 6px 12px;
+}
+.sprite-idle .zzz {
+  animation: zzz 2.4s ease-in-out infinite;
+}
+.sprite-queued {
+  animation: tap 1.4s steps(2) infinite;
+}
+.sprite-preparing {
+  animation: walk 2s ease-in-out infinite;
+}
+.sprite-failed {
+  filter: grayscale(0.8);
+  animation: shake 2.5s infinite;
+}
+@keyframes bob {
+  50% {
+    transform: translateY(-0.6px);
+  }
+}
+@keyframes type {
+  50% {
+    transform: translateY(-1px);
+  }
+}
+@keyframes tilt {
+  25% {
+    transform: rotate(-6deg);
+  }
+  75% {
+    transform: rotate(6deg);
+  }
+}
+@keyframes hop {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@keyframes breathe {
+  50% {
+    transform: scaleY(0.95);
+  }
+}
+@keyframes zzz {
+  0% {
+    opacity: 0;
+    transform: translate(0, 2px);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(2px, -3px);
+  }
+}
+@keyframes tap {
+  50% {
+    transform: translateY(-2px);
+  }
+}
+@keyframes walk {
+  25% {
+    transform: translateX(-6px);
+  }
+  75% {
+    transform: translateX(6px);
+  }
+}
+@keyframes shake {
+  0%,
+  90%,
+  100% {
+    transform: rotate(0);
+  }
+  93% {
+    transform: rotate(-8deg);
+  }
+  96% {
+    transform: rotate(8deg);
+  }
+}
+@keyframes spark {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.6);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(8px, -14px) scale(1.2);
+  }
+}
+@keyframes wobble {
+  50% {
+    transform: translateX(-50%) rotate(-2deg);
+  }
+}

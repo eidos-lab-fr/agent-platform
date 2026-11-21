@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useHQ } from "./HQ";
-import { Sprite } from "./Sprite";
+import { Sprite } from "./arcade/Sprite";
 
 export function Archipel() {
   const { world, act, busy } = useHQ();

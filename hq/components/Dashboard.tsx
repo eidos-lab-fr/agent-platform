@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { STAGE_LABELS } from "@/lib/types";
 import { useHQ } from "./HQ";
-import { Sprite } from "./Sprite";
+import { Sprite } from "./arcade/Sprite";
 import { ago, repoName } from "./util";
 
 const KIND_ICON: Record<string, string> = {

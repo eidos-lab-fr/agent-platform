@@ -39,6 +39,9 @@ export function HQ({ initial }: { initial: World | null }) {
   const [live, setLive] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sober, setSober] = useState(false);
+  // Les durées (« il y a 3 min ») dépendent de l'heure du navigateur : rendu côté client seulement.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     try {
@@ -86,7 +89,7 @@ export function HQ({ initial }: { initial: World | null }) {
     }
   }, []);
 
-  if (!world) {
+  if (!world || !mounted) {
     return (
       <main className="loading">
         <p>Le QG se réveille…</p>

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { STAGE_LABELS, type Quest, type Stage } from "@/lib/types";
 import { useHQ } from "./HQ";
-import { Sprite } from "./Sprite";
+import { Sprite } from "./arcade/Sprite";
 import { ago, repoName } from "./util";
 
 const JOURNEY: Stage[] = ["backlog", "a_developper", "en_developpement", "pr_ouverte", "revue_humaine", "done"];
