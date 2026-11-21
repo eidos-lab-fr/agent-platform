@@ -28,7 +28,7 @@ export function elapsed(iso: string | null | undefined, now = Date.now()): strin
   const m = Math.round(s / 60);
   if (m < 60) return `${m} min`;
   const h = Math.round(m / 60);
-  return h < 48 ? `${h} h` : `${Math.round(h / 24)} j`;
+  return h < 48 ? `${h} h` : `${Math.round(h / 24)} d`;
 }
 
 /** Subscribes the component to a snapshot source. */

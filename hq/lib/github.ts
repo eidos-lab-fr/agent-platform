@@ -3,7 +3,8 @@
 // only start for logins listed in allowed_users.
 
 import type { RawIssue, RawJob, RawPull, RawRepoData, RawRun } from "./derive";
-import { isActiveRun } from "./derive";
+import { isActiveRun, WORKFLOW_REVIEW } from "./derive";
+import type { PRStats } from "./types";
 import { config } from "./config";
 
 export class GitHubError extends Error {
@@ -101,5 +102,41 @@ export async function fetchRepoData(token: string, repo: string): Promise<RawRep
         if (last) lastComments[i.number] = last.body;
       }),
   );
-  return { repo, scopes, issues, pulls, runs, jobs, lastComments };
+  const open = pulls.filter((p) => p.state === "open");
+  const pullStats: Record<number, PRStats> = {};
+  const reviewJobs: Record<string, RawJob[]> = {};
+  await Promise.all(
+    open.map(async (p) => {
+      pullStats[p.number] = await prStats(token, repo, p);
+      // Runs come newest first: the first finished review run of the branch is the latest.
+      const run = runs.find((r) => r.name === WORKFLOW_REVIEW && r.head_branch === p.head.ref && r.status === "completed");
+      if (run) reviewJobs[p.head.ref] = await finishedJobs(token, repo, run.id);
+    }),
+  );
+  return { repo, scopes, issues, pulls, runs, jobs, lastComments, pullStats, reviewJobs };
+}
+
+// A PR's size only changes when it is updated, and a finished run never changes: cache both.
+const statsCache = new Map<string, PRStats>();
+const jobsCache = new Map<string, RawJob[]>();
+
+async function prStats(token: string, repo: string, p: RawPull): Promise<PRStats> {
+  const key = `${repo}#${p.number}@${p.updated_at ?? ""}`;
+  const hit = statsCache.get(key);
+  if (hit) return hit;
+  const d = await gh<{ additions: number; deletions: number; changed_files: number; commits: number }>(token, `/repos/${repo}/pulls/${p.number}`);
+  const stats = { additions: d.additions, deletions: d.deletions, files: d.changed_files, commits: d.commits };
+  if (statsCache.size > 500) statsCache.clear();
+  statsCache.set(key, stats);
+  return stats;
+}
+
+async function finishedJobs(token: string, repo: string, runId: number): Promise<RawJob[]> {
+  const key = `${repo}:${runId}`;
+  const hit = jobsCache.get(key);
+  if (hit) return hit;
+  const res = await gh<{ jobs: RawJob[] }>(token, `/repos/${repo}/actions/runs/${runId}/jobs`);
+  if (jobsCache.size > 500) jobsCache.clear();
+  jobsCache.set(key, res.jobs);
+  return res.jobs;
 }

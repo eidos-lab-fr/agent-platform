@@ -3,6 +3,8 @@
 
 import type {
   ActivityEvent,
+  PRStats,
+  ReviewResult,
   Agent,
   AgentActivity,
   AgentRole,
@@ -35,6 +37,7 @@ export interface RawPull {
   state: "open" | "closed";
   merged_at: string | null;
   created_at: string;
+  updated_at?: string;
   head: { ref: string };
   labels: RawLabel[];
 }
@@ -58,6 +61,7 @@ export interface RawStep {
 export interface RawJob {
   name: string;
   status: string;
+  conclusion?: string | null;
   started_at: string | null;
   steps?: RawStep[];
 }
@@ -71,6 +75,10 @@ export interface RawRepoData {
   jobs: Record<number, RawJob[]>;
   /** Last comment on blocked issues, keyed by issue number. */
   lastComments: Record<number, string>;
+  /** Size of open PRs, keyed by PR number. */
+  pullStats?: Record<number, PRStats>;
+  /** Jobs of the latest finished review run, keyed by branch. */
+  reviewJobs?: Record<string, RawJob[]>;
 }
 
 // Workflow names installed by agent-platform in each repo (templates/callers).
@@ -104,7 +112,22 @@ export function verdictOf(labels: string[]): Verdict {
   return null;
 }
 
-export function toQuestPR(pull: RawPull): QuestPR {
+/** Reviewer results of a branch: the running review run first, else the latest finished one. */
+export function reviewsOf(branch: string, data: Pick<RawRepoData, "runs" | "jobs" | "reviewJobs">): ReviewResult[] {
+  const active = data.runs.find((r) => r.name === WORKFLOW_REVIEW && r.head_branch === branch && isActiveRun(r));
+  const jobs = (active ? data.jobs[active.id] : undefined) ?? data.reviewJobs?.[branch] ?? [];
+  const out: ReviewResult[] = [];
+  for (const role of ["spec", "securite", "tests"] as const) {
+    const job = jobs.find((j) => new RegExp(`\\(${role}\\)`).test(j.name));
+    if (!job) continue;
+    const result =
+      job.status === "completed" ? (job.conclusion === "success" || job.conclusion === "skipped" ? "passed" : "failed") : job.status === "in_progress" ? "running" : "queued";
+    out.push({ role, result });
+  }
+  return out;
+}
+
+export function toQuestPR(pull: RawPull, data?: Pick<RawRepoData, "runs" | "jobs" | "reviewJobs" | "pullStats">): QuestPR {
   const labels = pull.labels.map((l) => l.name);
   return {
     number: pull.number,
@@ -115,6 +138,8 @@ export function toQuestPR(pull: RawPull): QuestPR {
     verdict: verdictOf(labels),
     mergedAt: pull.merged_at,
     createdAt: pull.created_at,
+    stats: data?.pullStats?.[pull.number] ?? null,
+    reviews: data ? reviewsOf(pull.head.ref, data) : [],
   };
 }
 
@@ -163,7 +188,7 @@ export function deriveQuests(data: RawRepoData): Quest[] {
     .map((i) => {
       const labels = i.labels.map((l) => l.name);
       const pull = pullsByIssue.get(i.number);
-      const pr = pull ? toQuestPR(pull) : null;
+      const pr = pull ? toQuestPR(pull, data) : null;
       const stage = stageOf({ state: i.state, labels, pr, devRunning: running.has(i.number) });
       return {
         id: `${data.repo}#${i.number}`,

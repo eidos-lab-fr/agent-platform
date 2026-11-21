@@ -16,6 +16,8 @@ export type Action =
       criteres: string;
       horsPerimetre: string;
       verification: string;
+      /** The need in plain words, when the quest was written from a prompt (no spec file). */
+      summary?: string;
       launch: boolean;
     }
   | { type: "launch"; repo: string; number: number; scope?: string }
@@ -35,8 +37,10 @@ const REPO_RE = /^[\w.-]+\/[\w.-]+$/;
 /** Issue body in the format of agent-platform's "Fonctionnalité" issue form (headings stay in French). */
 export function issueBody(a: Extract<Action, { type: "create" }>): string {
   const section = (title: string, value: string) => `### ${title}\n\n${value.trim() || "_No response_"}`;
+  const inline = !a.spec.trim() && Boolean(a.summary?.trim());
   return [
-    section("Chemin de la spec", a.spec),
+    section("Chemin de la spec", inline ? "Pas de fichier : la spec est dans ce ticket (section « Spec »)." : a.spec),
+    ...(inline ? [section("Spec", a.summary ?? "")] : []),
     section("Scope", a.scope),
     section("Ce que ce ticket couvre", a.perimetre),
     section("Critères d'acceptation", a.criteres),
@@ -53,7 +57,7 @@ export function validate(a: Action): string | null {
   if (a.type === "onboard" && !/^[\w.-]+$/.test(a.repo)) return "Invalid repo name (without the org).";
   if (a.type === "create") {
     if (!a.title?.trim()) return "The quest needs a title.";
-    if (!a.spec?.trim()) return "The spec path is required.";
+    if (!a.spec?.trim() && !a.summary?.trim()) return "Give a spec path or describe the need.";
     if (!a.criteres?.trim()) return "Add at least one acceptance criterion.";
     if (!/^[\w-]+$/.test(a.scope ?? "")) return "Invalid scope.";
   }

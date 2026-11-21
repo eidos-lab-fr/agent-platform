@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { SpecDraft } from "@/lib/spec-ai";
 import { useHQ } from "./HQ";
 
 /** Clarity meter: a vague spec often ends in needs-human. */
@@ -20,7 +21,184 @@ export function clarity(f: { spec: string; perimetre: string; criteres: string; 
   return { score: Math.min(score, 100), tips, criteria: criteria.length };
 }
 
+const ENGINE_TEXT: Record<SpecDraft["engine"], string> = {
+  ollama: "Rewritten by your local AI (Ollama)",
+  claude: "Rewritten by Claude",
+  rules: "Structured without AI (no local model found)",
+};
+
 export function Forge({ onClose, defaultRepo }: { onClose: () => void; defaultRepo?: string }) {
+  const [mode, setMode] = useState<"prompt" | "manual">("prompt");
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="modal forge" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="New request">
+        <header>
+          <h2>⚒️ New request</h2>
+          <div className="mode-switch" role="group" aria-label="How to write it">
+            <button className={mode === "prompt" ? "active" : ""} onClick={() => setMode("prompt")}>
+              ✨ Describe it
+            </button>
+            <button className={mode === "manual" ? "active" : ""} onClick={() => setMode("manual")}>
+              ✍️ By hand
+            </button>
+          </div>
+          <button className="ghost" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        </header>
+        {mode === "prompt" ? <PromptForge onClose={onClose} defaultRepo={defaultRepo} /> : <ManualForge onClose={onClose} defaultRepo={defaultRepo} />}
+      </div>
+    </div>
+  );
+}
+
+/** A PM writes the need in plain words; an AI (local first) turns it into a request the agents can work from. */
+function PromptForge({ onClose, defaultRepo }: { onClose: () => void; defaultRepo?: string }) {
+  const { world, act, busy, simple, notify } = useHQ();
+  const [repo, setRepo] = useState(defaultRepo ?? world.repos[0]?.fullName ?? "");
+  const scopes = world.repos.find((r) => r.fullName === repo)?.scopes ?? [];
+  const [prompt, setPrompt] = useState("");
+  const [thinking, setThinking] = useState(false);
+  const [d, setD] = useState<(Omit<SpecDraft, "criteres"> & { criteres: string }) | null>(null);
+  const [answers, setAnswers] = useState<string[]>([]);
+
+  const rewrite = async () => {
+    setThinking(true);
+    try {
+      const res = await fetch("/api/spec", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt, repo, scopes }) });
+      const r = (await res.json()) as { ok: boolean; message: string; draft?: SpecDraft };
+      if (!r.ok || !r.draft) return notify(r.message || "The rewrite failed.", false);
+      setD({ ...r.draft, criteres: r.draft.criteres.join("\n") });
+      setAnswers(r.draft.questions.map(() => ""));
+    } catch (e) {
+      notify((e as Error).message, false);
+    } finally {
+      setThinking(false);
+    }
+  };
+
+  const summary = d
+    ? [
+        d.summary,
+        ...d.questions.map((q, i) => (answers[i]?.trim() ? `**${q}** ${answers[i].trim()}` : "")).filter(Boolean),
+        "",
+        `_Original request:_ ${prompt.trim()}`,
+      ]
+        .join("\n\n")
+        .trim()
+    : "";
+  const c = clarity({ spec: summary, perimetre: d?.perimetre ?? "", criteres: d?.criteres ?? "", horsPerimetre: d?.horsPerimetre ?? "", verification: d?.verification ?? "" });
+  const open = d ? d.questions.filter((_, i) => !answers[i]?.trim()).length : 0;
+  const set = (k: "title" | "scope" | "summary" | "perimetre" | "criteres" | "horsPerimetre" | "verification") => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    d && setD({ ...d, [k]: e.target.value });
+
+  const submit = async (launch: boolean) => {
+    if (!d) return;
+    const criteres = d.criteres.split("\n").map((l) => l.replace(/^[-*\s]+/, "").trim()).filter(Boolean).map((l) => `- ${l}`).join("\n");
+    const r = await act({ type: "create", repo, title: d.title, scope: d.scope || "general", spec: "", summary, perimetre: d.perimetre, criteres, horsPerimetre: d.horsPerimetre, verification: d.verification, launch });
+    if (r.ok) onClose();
+  };
+
+  return (
+    <>
+      <div className="form-grid">
+        <label className={simple ? "wide" : ""}>
+          Product
+          <select value={repo} onChange={(e) => setRepo(e.target.value)}>
+            {world.repos.map((r) => (
+              <option key={r.fullName} value={r.fullName}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="wide">
+          What do you want? <span className="muted small">Say it like you would to a colleague. No technical detail needed.</span>
+          <textarea
+            rows={4}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="People should be able to export a note as a PDF from the note page, with the title and the date at the top. Not for whole folders for now."
+          />
+        </label>
+      </div>
+      <div className="row">
+        <button className={d ? "" : "primary"} disabled={thinking || prompt.trim().length < 8} onClick={rewrite}>
+          {thinking ? "Rewriting…" : d ? "↻ Rewrite again" : "✨ Turn it into a request"}
+        </button>
+        {d && <span className="muted small">{ENGINE_TEXT[d.engine]}</span>}
+      </div>
+
+      {d && (
+        <div className="draft">
+          <div className="form-grid">
+            <label className="wide">
+              Title
+              <input value={d.title} onChange={set("title")} />
+            </label>
+            {!simple && (
+              <label>
+                Desk (scope)
+                <select value={d.scope} onChange={set("scope")}>
+                  {[...scopes.filter((s) => s !== "general"), "general"].map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label className="wide">
+              The need
+              <textarea rows={3} value={d.summary} onChange={set("summary")} />
+            </label>
+            <label className="wide">
+              Done when… <span className="muted small">(one per line)</span>
+              <textarea rows={4} value={d.criteres} onChange={set("criteres")} />
+            </label>
+            <label>
+              Not part of it
+              <textarea rows={2} value={d.horsPerimetre} onChange={set("horsPerimetre")} />
+            </label>
+            <label>
+              How you will check it
+              <textarea rows={2} value={d.verification} onChange={set("verification")} />
+            </label>
+          </div>
+          {d.questions.length > 0 && (
+            <div className="questions">
+              <h3>🤔 Before the agents start</h3>
+              <p className="muted small">Answering now saves an agent getting stuck halfway. You can leave a question blank.</p>
+              {d.questions.map((q, i) => (
+                <label key={i}>
+                  {q}
+                  <input value={answers[i] ?? ""} onChange={(e) => setAnswers(answers.map((a, j) => (j === i ? e.target.value : a)))} />
+                </label>
+              ))}
+            </div>
+          )}
+          <div className="clarity">
+            <span>Clarity</span>
+            <span className="meter">
+              <span style={{ width: `${c.score}%` }} className={c.score >= 70 ? "good" : c.score >= 40 ? "mid" : "low"} />
+            </span>
+            <strong>{c.score}%</strong>
+          </div>
+          <footer>
+            <button className="ghost" disabled={busy || !d.title.trim()} onClick={() => submit(false)}>
+              Add to the backlog
+            </button>
+            <button className="primary" disabled={busy || !d.title.trim() || !c.criteria} onClick={() => submit(true)} title={open ? `${open} question(s) unanswered` : ""}>
+              Create and start building
+            </button>
+          </footer>
+        </div>
+      )}
+    </>
+  );
+}
+
+function ManualForge({ onClose, defaultRepo }: { onClose: () => void; defaultRepo?: string }) {
   const { world, act, busy } = useHQ();
   const [repo, setRepo] = useState(defaultRepo ?? world.repos[0]?.fullName ?? "");
   const scopes = world.repos.find((r) => r.fullName === repo)?.scopes ?? [];
@@ -35,14 +213,7 @@ export function Forge({ onClose, defaultRepo }: { onClose: () => void; defaultRe
   };
 
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="modal forge" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Forge a quest">
-        <header>
-          <h2>⚒️ Forge a quest</h2>
-          <button className="ghost" onClick={onClose} aria-label="Close">
-            ✕
-          </button>
-        </header>
+    <>
         <div className="form-grid">
           <label>
             Island (repo)
@@ -112,7 +283,6 @@ export function Forge({ onClose, defaultRepo }: { onClose: () => void; defaultRe
             Create and hand to an agent
           </button>
         </footer>
-      </div>
-    </div>
+    </>
   );
 }

@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { deriveAgents, deriveQuests, issueNumberOfPull, stageOf, type RawRepoData } from "@/lib/derive";
 import { buildQuest, demoRawData } from "@/lib/demo";
+import type { QuestPR } from "@/lib/types";
 import { assembleWorld } from "@/lib/world";
 
-const pr = (over: Partial<Parameters<typeof stageOf>[0]["pr"] & object> = {}) => ({
+const pr = (over: Partial<QuestPR> = {}): QuestPR => ({
   number: 2,
   url: "",
   title: "",
@@ -12,6 +13,8 @@ const pr = (over: Partial<Parameters<typeof stageOf>[0]["pr"] & object> = {}) =>
   verdict: null,
   mergedAt: null,
   createdAt: "",
+  stats: null,
+  reviews: [],
   ...over,
 });
 
@@ -102,5 +105,25 @@ describe("demo world", () => {
     expect(world.quests.length).toBeGreaterThan(10);
     expect(world.progress.merged).toBeGreaterThan(0);
     expect(new Set(world.quests.map((q) => q.id)).size).toBe(world.quests.length);
+  });
+});
+
+describe("reviewsOf", () => {
+  it("reads each reviewer's result of the latest finished review run", async () => {
+    const { reviewsOf } = await import("@/lib/derive");
+    const r = reviewsOf("agent/1-x", {
+      runs: [],
+      jobs: {},
+      reviewJobs: {
+        "agent/1-x": [
+          { name: "review / review (spec)", status: "completed", conclusion: "success", started_at: null },
+          { name: "review / review (tests)", status: "completed", conclusion: "failure", started_at: null },
+        ],
+      },
+    });
+    expect(r).toEqual([
+      { role: "spec", result: "passed" },
+      { role: "tests", result: "failed" },
+    ]);
   });
 });

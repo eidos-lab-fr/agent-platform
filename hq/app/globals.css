@@ -794,3 +794,477 @@ pre.body {
 .check input {
   width: auto;
 }
+
+/* Simple (product) mode hides GitHub vocabulary */
+.simple .dev-only,
+.simple .quest-card .tag,
+.simple .quest-repo .num {
+  display: none !important;
+}
+.mode-switch {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.mode-switch button {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 4px 10px;
+  font-size: 13px;
+}
+.mode-switch button.active {
+  background: var(--accent);
+  color: #1b1328;
+  font-weight: 700;
+}
+input,
+select,
+textarea {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 9px;
+  max-width: 100%;
+}
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+.danger {
+  color: var(--bad) !important;
+}
+.badge.gold {
+  background: rgba(245, 200, 76, 0.18);
+  color: var(--gold);
+  border-color: var(--gold);
+  margin-left: 8px;
+}
+.gold-text {
+  color: var(--gold);
+}
+.bad-text {
+  color: var(--bad);
+}
+.add {
+  color: var(--good);
+}
+.del {
+  color: var(--bad);
+}
+
+/* Team */
+.team-head {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.team-head label,
+.wizard-name,
+.questions label,
+.request-changes label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.team-head .wide {
+  grid-column: 1 / -1;
+}
+.team-agents {
+  margin-bottom: 16px;
+}
+button.team-agent {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+}
+.team-agent .agent-card-top div {
+  display: flex;
+  flex-direction: column;
+}
+.team-agent p {
+  margin: 0;
+}
+.team-agent-meta {
+  display: flex;
+  gap: 10px;
+}
+.team-add {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  border-style: dashed !important;
+}
+.team-foot {
+  display: flex;
+  justify-content: flex-end;
+}
+.deploys {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.deploys li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.agent-editor h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.editor-block {
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.editor-block h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+.files,
+.placements {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.files textarea {
+  width: 100%;
+  margin-top: 6px;
+}
+.files .row input {
+  flex: 1;
+  min-width: 0;
+}
+.placements li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.desk {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+}
+.desk input {
+  width: 120px;
+}
+label.upload {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+label.upload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.agent-editor footer .danger {
+  margin-right: auto;
+}
+
+/* Wizard */
+.templates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.template {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+}
+.template.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent) inset;
+}
+.template-emoji {
+  font-size: 26px;
+}
+.template-crew {
+  display: flex;
+  flex-wrap: wrap;
+}
+.place-grid {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  display: block;
+  overflow-x: auto;
+}
+.place-grid th,
+.place-grid td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: center;
+  white-space: nowrap;
+}
+.place-grid tbody th {
+  text-align: left;
+  font-weight: 600;
+}
+.place-grid tbody th svg {
+  vertical-align: middle;
+}
+
+/* Roadmap */
+.roadmap-cols {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1000px) {
+  .roadmap-cols {
+    grid-template-columns: 1fr;
+  }
+  .team-head {
+    grid-template-columns: 1fr;
+  }
+}
+.roadmap-col h2 {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.roadmap-col h2 .muted {
+  font-family: Inter, sans-serif;
+}
+.roadmap-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.roadmap-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.live-col {
+  border-top: 3px solid var(--good);
+}
+.build-col {
+  border-top: 3px solid var(--blue);
+}
+.backlog-col {
+  border-top: 3px solid var(--muted);
+}
+.branches {
+  display: flex;
+  flex-direction: column;
+}
+.branch-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 3px;
+  font-size: 13px;
+}
+.branch-main-dot {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--good);
+}
+button.branch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 0 6px 0 0;
+  text-align: left;
+  min-width: 0;
+}
+button.branch:hover {
+  background: var(--panel-2);
+}
+.branch svg {
+  flex: none;
+}
+.branch-trunk {
+  stroke: var(--good);
+  stroke-width: 3;
+}
+.branch-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.branch-text strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.branch-text code {
+  font-size: 11px;
+}
+.branch.merged {
+  opacity: 0.7;
+}
+.ms-todo {
+  fill: var(--bg-2);
+  stroke: var(--line);
+  stroke-width: 2;
+}
+.ms-now {
+  stroke: #fff;
+  stroke-width: 2;
+  animation: ms-pulse 1.6s ease-in-out infinite;
+}
+@keyframes ms-pulse {
+  50% {
+    stroke-width: 5;
+    stroke-opacity: 0.4;
+  }
+}
+.sober .ms-now {
+  animation: none;
+}
+.branch-empty {
+  margin: 8px 0 0 24px;
+}
+.branch-legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.branch-legend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--blue);
+}
+@media (max-width: 600px) {
+  .branch svg {
+    width: 120px;
+  }
+}
+
+/* Review of a change */
+.pr-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.sizebar {
+  display: inline-flex;
+  width: 90px;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-2);
+}
+.add-bar {
+  background: var(--good);
+}
+.del-bar {
+  background: var(--bad);
+}
+.reviewers {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rv-running {
+  animation: ms-pulse 1.6s ease-in-out infinite;
+}
+.ship {
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  padding: 10px;
+  margin: 8px 0;
+}
+.request-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+/* Prompted spec */
+.forge header {
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.forge textarea,
+.forge input,
+.forge select {
+  width: 100%;
+}
+.forge > .row {
+  margin-top: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.draft {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.questions {
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px dashed var(--gold);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.questions h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.questions p {
+  margin: 0;
+}
+.roadmap-cols > *,
+.branches {
+  min-width: 0;
+}
+button.branch {
+  width: 100%;
+}
+.branch-text > .small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

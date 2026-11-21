@@ -6,7 +6,7 @@ export function ago(iso: string | null, now = Date.now()): string {
   if (m < 60) return `${m} min`;
   const h = Math.round(m / 60);
   if (h < 48) return `${h} h`;
-  return `${Math.round(h / 24)} j`;
+  return `${Math.round(h / 24)} d`;
 }
 
 export function repoName(fullName: string): string {

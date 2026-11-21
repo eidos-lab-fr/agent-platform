@@ -67,6 +67,7 @@ interface Built {
   runs: RawRun[];
   jobs: Record<number, RawJob[]>;
   comment: string | null;
+  reviewJobs: Record<string, RawJob[]>;
 }
 
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -91,6 +92,7 @@ export function buildQuest(opts: {
   const runs: RawRun[] = [];
   const jobs: Record<number, RawJob[]> = {};
   let pull: RawPull | null = null;
+  const reviewJobs: Record<string, RawJob[]> = {};
   let comment: string | null = null;
   let state: "open" | "closed" = "open";
   let closedAt: string | null = null;
@@ -164,9 +166,17 @@ export function buildQuest(opts: {
       const job = (role: string, end: number) => ({
         name: `review / review (${role})`,
         status: p < 125 ? "queued" : p < end ? "in_progress" : "completed",
+        conclusion: p >= end ? "success" : null,
         started_at: at(125),
       });
       jobs[rid] = [job("spec", 150), job("securite", 165), job("tests", 172)];
+    } else {
+      reviewJobs[`agent/${number}-${slug}`] = (["spec", "securite", "tests"] as const).map((role) => ({
+        name: `review / review (${role})`,
+        status: "completed",
+        conclusion: "success",
+        started_at: at(125),
+      }));
     }
   }
 
@@ -181,7 +191,7 @@ export function buildQuest(opts: {
     updated_at: at(blocked ? (opts.blockFrom ?? 0) : Math.max(0, phase)),
     closed_at: closedAt,
   };
-  return { issue, pull, runs, jobs, comment };
+  return { issue, pull, runs, jobs, comment, reviewJobs };
 
   function devRun(id: number, t: string, status: string, conclusion: string | null, created: string, updated: string): RawRun {
     return {
@@ -249,10 +259,15 @@ export function demoRawData(now: number = Date.now()): RawRepoData[] {
   const t = Math.floor(now / 1000);
   return REPOS.map((r, ri) => {
     const repo = `${ORG}/${r.name}`;
-    const data: RawRepoData = { repo, scopes: r.scopes, issues: [], pulls: [], runs: [], jobs: {}, lastComments: {} };
+    const data: RawRepoData = { repo, scopes: r.scopes, issues: [], pulls: [], runs: [], jobs: {}, lastComments: {}, pullStats: {}, reviewJobs: {} };
     const add = (b: Built) => {
       data.issues.push(b.issue);
-      if (b.pull) data.pulls.push(b.pull);
+      if (b.pull) {
+        data.pulls.push(b.pull);
+        const n = b.pull.number;
+        data.pullStats![n] = { additions: 40 + ((n * 37) % 260), deletions: (n * 13) % 90, files: 2 + (n % 9), commits: 1 + (n % 4) };
+      }
+      Object.assign(data.reviewJobs!, b.reviewJobs);
       data.runs.push(...b.runs);
       Object.assign(data.jobs, b.jobs);
       if (b.comment) data.lastComments[b.issue.number] = b.comment;

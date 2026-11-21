@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { STAGES, STAGE_LABELS, type Stage } from "@/lib/types";
 import { Forge } from "./Forge";
+import { SIMPLE_STAGE } from "./QuestPanel";
 import { useHQ } from "./HQ";
 import { ago, repoName } from "./util";
 
@@ -10,7 +11,7 @@ import { ago, repoName } from "./util";
 const PATH: Stage[] = STAGES.filter((s) => s !== "bloque");
 
 export function Quests() {
-  const { world, openQuest } = useHQ();
+  const { world, openQuest, simple } = useHQ();
   const [repo, setRepo] = useState("tous");
   const [forge, setForge] = useState(false);
   const [showDone, setShowDone] = useState(false);
@@ -37,7 +38,7 @@ export function Quests() {
             <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} /> completed
           </label>
           <button className="primary" onClick={() => setForge(true)}>
-            + Forge a quest
+            {simple ? "+ New request" : "+ Forge a quest"}
           </button>
         </div>
       </div>
@@ -48,12 +49,12 @@ export function Quests() {
           return (
             <section key={stage} className={`lane lane-${stage}`}>
               <h3>
-                {STAGE_LABELS[stage]} <span className="muted">{items.length}</span>
+                {simple ? SIMPLE_STAGE[stage] : STAGE_LABELS[stage]} <span className="muted">{items.length}</span>
               </h3>
               {items.map((q) => (
                 <button key={q.id} className="quest-card" onClick={() => openQuest(q.id)}>
                   <span className="quest-repo">
-                    {repoName(q.repo)} #{q.number}
+                    {repoName(q.repo)} <span className="num">#{q.number}</span>
                     {q.scope && <span className="tag">{q.scope}</span>}
                   </span>
                   <strong>{q.title}</strong>

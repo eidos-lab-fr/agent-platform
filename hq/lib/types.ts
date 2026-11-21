@@ -28,6 +28,18 @@ export const STAGE_LABELS: Record<Stage, string> = {
 
 export type Verdict = "ok" | "changes" | null;
 
+export interface PRStats {
+  additions: number;
+  deletions: number;
+  files: number;
+  commits: number;
+}
+
+export interface ReviewResult {
+  role: "spec" | "securite" | "tests";
+  result: "passed" | "failed" | "running" | "queued";
+}
+
 export interface QuestPR {
   number: number;
   url: string;
@@ -37,6 +49,10 @@ export interface QuestPR {
   verdict: Verdict;
   mergedAt: string | null;
   createdAt: string;
+  /** Size of the change (open PRs only). */
+  stats: PRStats | null;
+  /** Each reviewer's result in the latest review run of the branch. */
+  reviews: ReviewResult[];
 }
 
 export interface Quest {
