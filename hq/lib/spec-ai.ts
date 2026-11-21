@@ -1,10 +1,10 @@
 // Turns a request written in plain words ("users should be able to export a note as PDF")
 // into a quest the agents can work from: title, desk, acceptance criteria, out of scope.
 //
-// Engines, in order (SPEC_ENGINE=auto): a local model through Ollama, then Claude if
-// ANTHROPIC_API_KEY is set, then simple rules. SPEC_ENGINE=ollama|claude|rules forces one.
+// The model comes from the AI settings (lib/ai.ts): Claude Code, an API key, Ollama, or rules.
+// In auto, a failing provider falls back to the rules so you always get a draft.
 
-import Anthropic from "@anthropic-ai/sdk";
+import { aiSettings, completeJson, pickProvider, type ProviderId } from "./ai";
 
 export interface SpecDraft {
   title: string;
@@ -17,7 +17,7 @@ export interface SpecDraft {
   verification: string;
   /** What remains unclear: better asked now than by an agent stuck halfway. */
   questions: string[];
-  engine: "ollama" | "claude" | "rules";
+  engine: ProviderId;
 }
 
 export interface SpecRequest {
@@ -78,62 +78,6 @@ function clean(raw: Partial<SpecDraft>, req: SpecRequest, engine: SpecDraft["eng
   };
 }
 
-// ---------------------------------------------------------------- Ollama (local)
-
-const ollamaUrl = () => (process.env.OLLAMA_URL ?? "http://127.0.0.1:11434").replace(/\/$/, "");
-const ollamaModel = () => process.env.OLLAMA_MODEL ?? "llama3.1";
-
-async function viaOllama(req: SpecRequest): Promise<SpecDraft> {
-  const res = await fetch(`${ollamaUrl()}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    signal: AbortSignal.timeout(60_000),
-    body: JSON.stringify({
-      model: ollamaModel(),
-      stream: false,
-      format: SCHEMA,
-      options: { temperature: 0.2 },
-      messages: [
-        { role: "system", content: systemPrompt(req.scopes) },
-        { role: "user", content: `Island: ${req.repo}\n\nRequest:\n${req.prompt}` },
-      ],
-    }),
-  });
-  if (!res.ok) throw new Error(`Ollama answered ${res.status}`);
-  const data = (await res.json()) as { message?: { content?: string } };
-  return clean(JSON.parse(data.message?.content ?? "{}"), req, "ollama");
-}
-
-async function ollamaUp(): Promise<boolean> {
-  try {
-    const res = await fetch(`${ollamaUrl()}/api/tags`, { signal: AbortSignal.timeout(1500) });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
-// ---------------------------------------------------------------- Claude
-
-async function viaClaude(req: SpecRequest): Promise<SpecDraft> {
-  const client = new Anthropic();
-  const response = await client.beta.messages.create({
-    model: process.env.ANTHROPIC_MODEL ?? "claude-opus-5-5",
-    max_tokens: 16000,
-    // A short rewrite: low effort is enough and keeps the answer quick.
-    output_config: { effort: "low", format: { type: "json_schema", schema: SCHEMA } },
-    // If the model declines, the API retries on a suited model in the same call.
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    system: systemPrompt(req.scopes),
-    messages: [{ role: "user", content: `Island: ${req.repo}\n\nRequest:\n${req.prompt}` }],
-  });
-  if (response.stop_reason === "refusal") throw new Error("Claude declined this request.");
-  const text = response.content.find((b) => b.type === "text");
-  if (!text || text.type !== "text") throw new Error("Claude returned no text.");
-  return clean(JSON.parse(text.text), req, "claude");
-}
-
 // ---------------------------------------------------------------- Rules (no AI)
 
 const SCOPE_HINTS: Record<string, string[]> = {
@@ -180,29 +124,15 @@ export function viaRules(req: SpecRequest): SpecDraft {
   };
 }
 
-export function engineChoice(): "auto" | SpecDraft["engine"] {
-  const e = (process.env.SPEC_ENGINE ?? "auto").toLowerCase();
-  return e === "ollama" || e === "claude" || e === "rules" ? e : "auto";
-}
-
-export async function draftSpec(req: SpecRequest): Promise<SpecDraft> {
-  const choice = engineChoice();
-  if (choice === "ollama") return viaOllama(req);
-  if (choice === "claude") return viaClaude(req);
-  if (choice === "rules") return viaRules(req);
-  if (await ollamaUp()) {
-    try {
-      return await viaOllama(req);
-    } catch {
-      // fall through to the next engine
-    }
+export async function draftSpec(req: SpecRequest, opts: { hosted?: boolean } = {}): Promise<SpecDraft> {
+  const settings = await aiSettings();
+  const provider = await pickProvider(settings, { hosted: Boolean(opts.hosted) });
+  if (provider === "rules") return viaRules(req);
+  const ask = { system: systemPrompt(req.scopes), user: `Project: ${req.repo}\n\nRequest:\n${req.prompt}`, schema: SCHEMA };
+  try {
+    return clean((await completeJson(provider, settings, ask)) as Partial<SpecDraft>, req, provider);
+  } catch (e) {
+    if (settings.provider !== "auto") throw e;
+    return viaRules(req);
   }
-  if (process.env.ANTHROPIC_API_KEY) {
-    try {
-      return await viaClaude(req);
-    } catch {
-      // fall through to the rules
-    }
-  }
-  return viaRules(req);
 }
