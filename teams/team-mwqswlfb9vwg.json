@@ -6,7 +6,12 @@
   "agents": [
     {
       "id": "agent-mwqswlfbjzsx",
-      "placements": [],
+      "placements": [
+        {
+          "repo": "eidos-lab-fr/notula",
+          "scope": "courses"
+        }
+      ],
       "name": "Pixel",
       "role": "dev",
       "mission": "Builds the interface: pages, components, styles.",
@@ -35,7 +40,12 @@
     },
     {
       "id": "agent-mwqswlfbl0s6",
-      "placements": [],
+      "placements": [
+        {
+          "repo": "eidos-lab-fr/notula",
+          "scope": "notes"
+        }
+      ],
       "name": "Bolt",
       "role": "dev",
       "mission": "Builds the API, the data model and the migrations.",
@@ -64,7 +74,12 @@
     },
     {
       "id": "agent-mwqswlfbfoq5",
-      "placements": [],
+      "placements": [
+        {
+          "repo": "eidos-lab-fr/notula",
+          "scope": "spec"
+        }
+      ],
       "name": "Spec checker",
       "role": "spec",
       "mission": "Checks the PR does what the issue asks, no more, no less.",
@@ -78,7 +93,12 @@
     },
     {
       "id": "agent-mwqswlfb7wn4",
-      "placements": [],
+      "placements": [
+        {
+          "repo": "eidos-lab-fr/notula",
+          "scope": "securite"
+        }
+      ],
       "name": "Security guard",
       "role": "securite",
       "mission": "Looks for secrets, injections and unsafe dependencies.",
@@ -97,7 +117,12 @@
     },
     {
       "id": "agent-mwqswlfbqkpa",
-      "placements": [],
+      "placements": [
+        {
+          "repo": "eidos-lab-fr/notula",
+          "scope": "tests"
+        }
+      ],
       "name": "Test keeper",
       "role": "tests",
       "mission": "Makes sure each change comes with tests that would fail without it.",
@@ -112,6 +137,6 @@
   ],
   "id": "team-mwqswlfb9vwg",
   "createdAt": "2026-11-21T19:28:35.447Z",
-  "updatedAt": "2026-11-21T19:28:35.447Z",
+  "updatedAt": "2026-11-21T19:28:40.126Z",
   "deployments": []
 }
